@@ -1,6 +1,7 @@
 defmodule AlloyWeb.ProjectLive.Show do
   use AlloyWeb, :live_view
 
+  alias Alloy.Charters
   alias Alloy.Projects
   alias Alloy.Projects.ApiToken
 
@@ -18,6 +19,9 @@ defmodule AlloyWeb.ProjectLive.Show do
           <.button variant="primary" navigate={~p"/projects/#{@project}/intents"}>
             <.icon name="hero-rectangle-stack" /> Intent Records
           </.button>
+          <.button navigate={~p"/projects/#{@project}/charter"}>
+            <.icon name="hero-document-text" /> Charter
+          </.button>
           <.button navigate={~p"/projects/#{@project}/edit"}>
             <.icon name="hero-pencil-square" /> Edit
           </.button>
@@ -28,6 +32,36 @@ defmodule AlloyWeb.ProjectLive.Show do
         <:item title="Name">{@project.name}</:item>
         <:item title="Key">{@project.key}</:item>
       </.list>
+
+      <section class="mt-10">
+        <.header>
+          Charter
+          <:subtitle>
+            The product context that grounds this project's engineering intent.
+          </:subtitle>
+          <:actions>
+            <.button navigate={~p"/projects/#{@project}/charter"}>
+              <.icon name="hero-pencil-square" /> {(@charter_present && "Edit") || "Set"} charter
+            </.button>
+          </:actions>
+        </.header>
+
+        <.list :if={@charter_present}>
+          <:item :if={@charter.mission} title="Mission">{@charter.mission}</:item>
+          <:item :if={@charter.target_audience} title="Target audience">
+            {@charter.target_audience}
+          </:item>
+          <:item :if={@charter.problem_space} title="Problem space">{@charter.problem_space}</:item>
+          <:item :if={@charter.differentiators} title="Differentiators">
+            {@charter.differentiators}
+          </:item>
+          <:item :if={@charter.out_of_scope} title="Out of scope">{@charter.out_of_scope}</:item>
+        </.list>
+
+        <p :if={!@charter_present} class="text-base-content/60 mt-4 text-sm">
+          No charter yet. Set one to ground this project's intent.
+        </p>
+      </section>
 
       <section class="mt-10">
         <.header>
@@ -97,12 +131,15 @@ defmodule AlloyWeb.ProjectLive.Show do
   @impl true
   def mount(%{"key" => key}, _session, socket) do
     project = Projects.get_project_by_key!(key)
+    charter = Charters.get_or_new_charter(project)
 
     {:ok,
      socket
      |> assign(:page_title, project.name)
      |> assign(:project, project)
      |> assign(:projects, Projects.list_projects())
+     |> assign(:charter, charter)
+     |> assign(:charter_present, Charters.present?(charter))
      |> assign(:api_host, AlloyWeb.Endpoint.url())
      |> assign(:new_secret, nil)
      |> assign_tokens()

@@ -28,6 +28,8 @@ defmodule AlloyWeb.Router do
     live "/projects/:key", ProjectLive.Show, :show
     live "/projects/:key/edit", ProjectLive.Form, :edit
 
+    live "/projects/:project_key/charter", CharterLive.Show, :show
+
     live "/projects/:project_key/intents", IntentRecordLive.Index, :index
     live "/projects/:project_key/intents/new", IntentRecordLive.Form, :new
     live "/projects/:project_key/intents/:slug", IntentRecordLive.Show, :show
@@ -41,6 +43,10 @@ defmodule AlloyWeb.Router do
     get "/project", ProjectController, :show
     patch "/project", ProjectController, :update
     put "/project", ProjectController, :update
+
+    get "/charter", CharterController, :show
+    patch "/charter", CharterController, :update
+    put "/charter", CharterController, :update
 
     get "/intents", IntentRecordController, :index
     post "/intents", IntentRecordController, :create

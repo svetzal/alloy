@@ -193,10 +193,29 @@ The bearer token identifies the project, so `/api/v1` routes carry no project
 id; project create/delete stay web-UI concerns. Records are addressed by their
 project-local slug.
 
-### Phase 3 — Charter
+### Phase 3 — Charter ✅ Complete
 
-`charters` table (one per project; five fields), context, LiveView, and
-`/api/v1/projects/:key/charter` endpoint.
+`charters` table (one per project; five fields), context, LiveView, and a
+token-scoped `/api/v1/charter` endpoint.
+
+**Delivered** (trunk-based on `main`, full quality gate + dialyzer green):
+
+- `charters` table (one-per-project via a unique `project_id`; five free-text
+  fields: `mission`, `target_audience`, `problem_space`, `differentiators`,
+  `out_of_scope`) + `Alloy.Charters.Charter` schema (all fields optional, blank
+  strings normalized to `nil`) + `Alloy.Charters` context (`get_charter`,
+  `get_or_new_charter`, `upsert_charter`, `present?`, `change_charter`).
+- `/api/v1/charter` JSON controller (GET shows the five-field shape — `null`s
+  when unset — and PATCH/PUT upserts), sharing the `{success, data, error}`
+  envelope and the bearer-token project scoping.
+- `CharterLive.Show` at `/projects/:project_key/charter` (display + single-save
+  edit form); a charter summary section and Set/Edit button on the project Show
+  LiveView.
+
+As with the rest of `/api/v1`, the bearer token identifies the project, so the
+charter endpoint carries no project id in its path (the earlier plan's
+`/api/v1/projects/:key/charter` sketch is superseded by this Phase 2
+convention).
 
 ### Phase 4 — Rust CLI (`cli/`)
 
