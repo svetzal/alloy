@@ -260,16 +260,67 @@ end-to-end against a running backend):
   profile is configured (`strip`, `lto`) and CI packaging folds in with Phase 6
   (Rust CI + the API surface into the quality gate).
 
-### Phase 5 — Agent skill
+### Phase 5 — Agent skill ✅ Complete
 
 `skills/alloy/` (SKILL.md + `references/` + `workflows/`) teaching the six-field
 model, lifecycle, key scheme, and charter; `alloy init [--global]` installs it
 via `include_str!`, version-stamped.
 
-### Phase 6 — Parity polish
+**Delivered** (trunk-based on `main`; `cargo fmt --check`, `cargo clippy
+--all-targets -- -D warnings`, and `cargo test` all green; `init` smoke-tested
+end-to-end — create / up-to-date / downgrade-skip / `--force`):
+
+- `f34333f` — the `alloy` agent skill under **`cli/skills/alloy/`** (co-located
+  with the embedding crate, mirroring et's `apps/cli/skills/`): `SKILL.md` plus
+  `references/cli-reference.md`, `references/intent-model.md`,
+  `workflows/getting-started.md`, and `workflows/capturing-intent.md`. They
+  teach the six-field record (capability/threat/expectation/strategy/evidence/
+  tradeoff), the seven-state lifecycle and legal transitions, the
+  `<project_key>.intent.<slug>` key scheme (slug `^[a-z0-9_-]+$`, immutable), and
+  the five-field charter — all framed around the `alloy` CLI.
+- `alloy init [--global] [--force]` installs/updates those files into
+  `.claude/skills/alloy/` (or `~/.claude/skills/alloy/`). Files are embedded via
+  `include_str!` and version-stamped (`alloy_version` in frontmatter); a re-run
+  reports created/updated/up-to-date and refuses to overwrite a **newer**
+  installed skill unless `--force`. The stamp/strip/parse, semver compare, and
+  per-file action planning are a pure core with unit tests; the filesystem walk
+  is the thin shell. `init` needs no `.alloy_env`, so the binary dispatches it
+  before building the HTTP gateway.
+
+**Deviation:** skill source lives at **`cli/skills/alloy/`** (not repo-root
+`skills/alloy/` as the gap list sketched), keeping `include_str!` paths local to
+the crate and matching the reference model's `apps/cli/skills/` layout. The
+installed copy still lands in `.claude/skills/alloy/`.
+
+### Phase 6 — Parity polish ✅ Complete
 
 `validate` referential integrity, `docs --agents` content, Rust CI + API
 surface folded into the quality gate.
+
+**Delivered** (trunk-based on `main`; full Elixir `mix quality` gate green and
+the Rust gate — `cargo fmt --check`, `cargo clippy --all-targets -- -D
+warnings`, `cargo test` — green):
+
+- `a8463c2` — closed the Phase 4 `validate` deferral. The record JSON now
+  serializes a resolved **`supersedes_slug`** (the project-local slug of the
+  record a given record supersedes) alongside the opaque `supersedes_id`; the
+  list endpoint resolves it for free from the records it already returns, and
+  single-record endpoints resolve the one link via `Alloy.Intent.slug_lookup/2`.
+  `alloy validate` now checks supersede-link integrity (unresolved link →
+  error; predecessor not itself `superseded` → warning) and warns on records
+  left `hypothesized`; `intent show` surfaces lineage; `docs --agents` names the
+  six fields and the key scheme.
+- `478ec08` — Rust CLI quality gate folded into `ci.yml` (a `cli` job running
+  fmt-check, clippy `-D warnings`, and tests, cached via `Swatinem/rust-cache`)
+  on every push/PR to `main`, alongside the Elixir gate and the docs
+  link-check.
+
+**Open thread (distribution, not parity):** cross-compiled **release-binary
+packaging** is still not produced (the release profile is configured, and the
+quality gate now runs in CI, but there is no tag-triggered build that
+cross-compiles and uploads per-platform `alloy` binaries the way et ships them).
+That is a packaging/distribution concern rather than baseline parity, and is the
+one remaining item from the et model.
 
 ## Settled defaults (override if needed)
 
