@@ -23,6 +23,7 @@ defmodule Alloy.Projects.Project do
     field :name, :string
 
     has_many :records, Alloy.Intent.Record
+    has_many :api_tokens, Alloy.Projects.ApiToken
 
     timestamps(type: :utc_datetime_usec)
   end

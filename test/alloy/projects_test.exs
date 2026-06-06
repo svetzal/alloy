@@ -130,4 +130,95 @@ defmodule Alloy.ProjectsTest do
       refute Map.has_key?(changeset.changes, :key)
     end
   end
+
+  describe "create_api_token/2" do
+    test "mints a token and returns the one-time plaintext secret" do
+      project = project_fixture()
+
+      assert {:ok, token, secret} = Projects.create_api_token(project, %{name: "ci"})
+      assert token.project_id == project.id
+      assert token.name == "ci"
+      assert String.starts_with?(secret, "alloy_")
+    end
+
+    test "stores only the hash, never the plaintext" do
+      project = project_fixture()
+      {:ok, token, secret} = Projects.create_api_token(project, %{name: "ci"})
+
+      refute token.token_hash == secret
+      assert token.token_hash == Alloy.Projects.ApiToken.hash(secret)
+    end
+
+    test "issues a distinct secret each time" do
+      project = project_fixture()
+      {:ok, _, a} = Projects.create_api_token(project, %{name: "one"})
+      {:ok, _, b} = Projects.create_api_token(project, %{name: "two"})
+      refute a == b
+    end
+
+    test "requires a name" do
+      project = project_fixture()
+      assert {:error, changeset} = Projects.create_api_token(project, %{name: ""})
+      assert %{name: ["can't be blank"]} = errors_on(changeset)
+    end
+  end
+
+  describe "list_api_tokens/1" do
+    test "returns the project's tokens, newest first" do
+      project = project_fixture()
+      {:ok, older, _} = Projects.create_api_token(project, %{name: "older"})
+      {:ok, newer, _} = Projects.create_api_token(project, %{name: "newer"})
+
+      assert project |> Projects.list_api_tokens() |> Enum.map(& &1.id) == [newer.id, older.id]
+    end
+
+    test "is scoped to the project" do
+      mine = project_fixture(key: "mine", name: "Mine")
+      theirs = project_fixture(key: "theirs", name: "Theirs")
+      {:ok, token, _} = Projects.create_api_token(mine, %{name: "mine"})
+      {:ok, _, _} = Projects.create_api_token(theirs, %{name: "theirs"})
+
+      assert mine |> Projects.list_api_tokens() |> Enum.map(& &1.id) == [token.id]
+    end
+  end
+
+  describe "authenticate_token/1" do
+    test "returns the owning project for a valid secret" do
+      project = project_fixture()
+      {:ok, _token, secret} = Projects.create_api_token(project, %{name: "ci"})
+
+      assert %Project{id: id} = Projects.authenticate_token(secret)
+      assert id == project.id
+    end
+
+    test "touches last_used_at on a successful authentication" do
+      project = project_fixture()
+      {:ok, token, secret} = Projects.create_api_token(project, %{name: "ci"})
+      assert token.last_used_at == nil
+
+      Projects.authenticate_token(secret)
+
+      assert [%{last_used_at: used}] = Projects.list_api_tokens(project)
+      assert used != nil
+    end
+
+    test "returns nil for an unknown secret" do
+      assert Projects.authenticate_token("alloy_nope") == nil
+    end
+
+    test "returns nil for a non-binary secret" do
+      assert Projects.authenticate_token(nil) == nil
+    end
+  end
+
+  describe "delete_api_token/1" do
+    test "revokes the token so it no longer authenticates" do
+      project = project_fixture()
+      {:ok, token, secret} = Projects.create_api_token(project, %{name: "ci"})
+
+      assert {:ok, _} = Projects.delete_api_token(token)
+      assert Projects.authenticate_token(secret) == nil
+      assert Projects.list_api_tokens(project) == []
+    end
+  end
 end

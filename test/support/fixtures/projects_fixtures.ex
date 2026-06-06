@@ -18,4 +18,17 @@ defmodule Alloy.ProjectsFixtures do
 
     project
   end
+
+  @doc """
+  Mints an API token for a project and returns `{token, secret}`, where `secret`
+  is the one-time plaintext bearer string. Creates a default project when none
+  is given.
+  """
+  def api_token_fixture(attrs \\ %{}) do
+    {project, attrs} = Map.pop_lazy(Enum.into(attrs, %{}), :project, &project_fixture/0)
+    attrs = Enum.into(attrs, %{name: "test token"})
+
+    {:ok, token, secret} = Alloy.Projects.create_api_token(project, attrs)
+    {token, secret}
+  end
 end
