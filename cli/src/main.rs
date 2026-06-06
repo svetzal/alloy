@@ -8,7 +8,7 @@ use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 
 use alloy_cli::api::{Api, Transition};
-use alloy_cli::commands::{charter, docs, intent, project, validate};
+use alloy_cli::commands::{charter, docs, init, intent, project, validate};
 use alloy_cli::config::Config;
 use alloy_cli::http::HttpApi;
 use alloy_cli::output::emit_error;
@@ -31,6 +31,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Install or update the embedded agent skill files (no .alloy_env needed).
+    Init(InitArgs),
     /// Inspect or rename the token-scoped project.
     Project {
         #[command(subcommand)]
@@ -50,6 +52,16 @@ enum Command {
     Validate,
     /// Generate agent-facing documentation for this project.
     Docs(DocsArgs),
+}
+
+#[derive(Args)]
+struct InitArgs {
+    /// Install into ~/.claude/skills/alloy/ instead of ./.claude/skills/alloy/.
+    #[arg(long)]
+    global: bool,
+    /// Overwrite even a newer installed skill (a downgrade).
+    #[arg(long)]
+    force: bool,
 }
 
 #[derive(Subcommand)]
@@ -243,12 +255,20 @@ fn main() -> ExitCode {
 
 fn run(cli: Cli) -> Result<i32> {
     let json = cli.json;
+
+    // `init` only writes embedded skill files, so it is dispatched before the
+    // backend gateway is built — it must work without an `.alloy_env`.
+    if let Command::Init(args) = cli.command {
+        return init::run(args.global, args.force, json);
+    }
+
     let api = HttpApi::new(Config::load()?)?;
     dispatch(&api, json, cli.command)
 }
 
 fn dispatch(api: &dyn Api, json: bool, command: Command) -> Result<i32> {
     match command {
+        Command::Init(_) => unreachable!("init is handled before gateway construction"),
         Command::Project { action } => match action {
             ProjectAction::Show => project::show(api, json),
             ProjectAction::Set { name } => project::set(api, json, &name),

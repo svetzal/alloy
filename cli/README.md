@@ -18,9 +18,16 @@ Mint a token in the Alloy web console: **Projects → a project → Generate
 token**. The file is read from the current working directory only (no
 directory-tree walk).
 
+`alloy init` needs no `.alloy_env` — it only installs the embedded agent skill
+files (version-stamped) into `.claude/skills/alloy/`, refusing to overwrite a
+newer installed skill unless `--force` is given. The skill teaches agents the
+six-field intent model and this CLI; run it again after upgrading the binary.
+
 ## Commands
 
 ```bash
+alloy init [--global] [--force]          # install the agent skill into .claude/skills/alloy/
+
 alloy project show                       # show the token-scoped project
 alloy project set --name "New Name"      # rename it
 
