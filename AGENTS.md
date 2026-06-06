@@ -82,11 +82,11 @@ network-dependent). Run `dialyzer` and `deps.audit` before pushing.
 ### Acknowledged scaffold-level exceptions
 
 - **Sobelow `Config.CSP` / `Config.HTTPS`** are ignored in
-  `.sobelow-conf` with rationale: a Content-Security-Policy is authored
-  once the UI's script needs are known, and TLS/HSTS is a deployment
-  decision (hosting is deliberately left open in
-  `docs/integration/architectural-decision.md`). Revisit during
-  deployment hardening.
+  `.sobelow-conf`. `Config.HTTPS`: Alloy runs behind a reverse proxy
+  that terminates TLS, so the app serves plain HTTP and does not manage
+  certs/HSTS — a settled decision, not a follow-up. `Config.CSP`: a
+  Content-Security-Policy is authored once the UI's script needs are
+  known (revisit during UI hardening).
 - **Coverage threshold** is low at bootstrap (mostly generated
   boilerplate). RAISE it as domain code lands; the functional core
   should sit well above 90%.

@@ -11,11 +11,10 @@
 #   * Config.CSP   — a Content-Security-Policy must be authored once the
 #                    UI's asset/inline-script needs are known. Tracked as
 #                    a hardening follow-up; see AGENTS.md.
-#   * Config.HTTPS — TLS/HSTS termination is a deployment-topology
-#                    decision (docs/integration/architectural-decision.md
-#                    deliberately leaves hosting open). Enforce HSTS via
-#                    force_ssl in runtime.exs, or at the proxy, when a
-#                    topology is chosen.
+#   * Config.HTTPS — TLS termination is handled by the reverse proxy in
+#                    front of this app, by design; Alloy serves plain HTTP
+#                    behind it and does not manage certs or HSTS itself.
+#                    Settled decision, not a follow-up.
 #
 # Remove entries from `ignore` as each item is addressed.
 [
