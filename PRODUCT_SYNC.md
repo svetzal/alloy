@@ -325,20 +325,22 @@ warnings`, `cargo test` — green):
   earlier Phase 4 deviation ("release profile configured but binaries not
   produced") is now resolved.
 
-- **Homebrew distribution** — the `release` job packages the Unix binaries as
-  `.tar.gz`, attaches them to the GitHub Release, and exports their SHA-256s as
-  job outputs; an `update-homebrew` job then writes `Formula/alloy.rb` into the
-  shared **`svetzal/homebrew-tap`** (the same tap et/foundry/hopper use) pointing
-  at the release tarball URLs, so `brew install svetzal/tap/alloy` works. It
-  needs a `HOMEBREW_TAP_TOKEN` repo secret with push access to the tap, and is
-  skipped for pre-release tags (those containing `-`). The SHAs are computed in
-  the same job that creates and uploads the tarballs, so the formula's checksum
-  always matches the published asset.
+- **S3 mirror + Homebrew distribution** — the `release` job packages the Unix
+  binaries as `.tar.gz`, attaches them (with the Windows `.exe` and
+  `SHA256SUMS.txt`) to the GitHub Release, mirrors the same bytes to
+  `s3://alloy-releases/v<version>/` and `.../latest/`, and exports the tarball
+  SHA-256s as job outputs. An `update-homebrew` job then writes `Formula/alloy.rb`
+  into the shared **`svetzal/homebrew-tap`** (the same tap et/foundry/hopper use)
+  pointing at the S3 tarball URLs, so `brew install svetzal/tap/alloy` works.
+  Secrets: `HOMEBREW_TAP_TOKEN` (push to the tap) and `AWS_ACCESS_KEY_ID` /
+  `AWS_SECRET_ACCESS_KEY` (an IAM user with `s3:PutObject` on the bucket). The
+  tap update is skipped for pre-release tags (those containing `-`). The SHAs are
+  computed from the exact tarball files the job uploads, so the formula's
+  checksum always matches the S3 asset. Bucket/region (`alloy-releases` /
+  `ca-central-1`) live in the workflow's top-level `env`.
 
-This closes the parity baseline against the et model. The only et release stage
-*not* mirrored is the **S3 mirror**: et uses S3 as the Homebrew download source,
-but since the Alloy repo is public, the formula points straight at the GitHub
-Release assets — no bucket or `AWS_*` secrets required.
+This fully mirrors the et release model (cross-compiled binaries → GitHub
+Release + S3 mirror → Homebrew tap formula) and closes the parity baseline.
 
 ## Settled defaults (override if needed)
 

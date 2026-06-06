@@ -97,10 +97,20 @@ Pushing a `vX.Y.Z` tag triggers `.github/workflows/release.yml`, which:
 2. cross-compiles per-platform binaries (`alloy-darwin-arm64`,
    `alloy-darwin-x64`, `alloy-linux-x64`, `alloy-windows-x64.exe`),
 3. attaches the Unix tarballs, the Windows `.exe`, and a `SHA256SUMS.txt` to a
-   GitHub Release, and
-4. updates `Formula/alloy.rb` in the shared `svetzal/homebrew-tap` (skipped for
-   pre-release tags containing `-`).
+   GitHub Release,
+4. mirrors the same assets to `s3://alloy-releases/v<version>/` and
+   `s3://alloy-releases/latest/`, and
+5. updates `Formula/alloy.rb` in the shared `svetzal/homebrew-tap` to point at
+   the S3 tarball URLs (skipped for pre-release tags containing `-`).
 
 To cut a release: bump `version` in `Cargo.toml`, commit, then tag
-(`git tag v0.2.0 && git push origin v0.2.0`). Updating the tap requires a
-`HOMEBREW_TAP_TOKEN` repo secret with push access to `svetzal/homebrew-tap`.
+(`git tag v0.2.0 && git push origin v0.2.0`).
+
+Required repo secrets:
+
+- `HOMEBREW_TAP_TOKEN` — push access to `svetzal/homebrew-tap`.
+- `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` — an IAM user with
+  `s3:PutObject` on `arn:aws:s3:::alloy-releases/*`.
+
+The bucket and region are set in the workflow's top-level `env` (`alloy-releases`
+/ `ca-central-1`).

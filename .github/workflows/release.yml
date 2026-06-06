@@ -14,6 +14,10 @@ on:
 permissions:
   contents: write
 
+env:
+  S3_BUCKET: alloy-releases
+  AWS_REGION: ca-central-1
+
 jobs:
   verify:
     name: Verify tag matches crate version
@@ -140,6 +144,27 @@ jobs:
             release/SHA256SUMS.txt
           generate_release_notes: true
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Mirror release assets to S3
+        shell: bash
+        run: |
+          version="${GITHUB_REF#refs/tags/v}"
+          # The same tarball bytes attached to the GitHub Release (so the
+          # Homebrew formula's checksums match), under a versioned prefix and a
+          # rolling "latest".
+          for prefix in "v$version" latest; do
+            for f in alloy-darwin-arm64.tar.gz alloy-darwin-x64.tar.gz \
+                     alloy-linux-x64.tar.gz alloy-windows-x64.exe SHA256SUMS.txt; do
+              aws s3 cp "release/$f" "s3://$S3_BUCKET/$prefix/$f"
+            done
+          done
+
   update-homebrew:
     name: Update Homebrew tap
     needs: release
@@ -161,6 +186,8 @@ jobs:
           SHA_ARM64: ${{ needs.release.outputs.sha_arm64 }}
           SHA_X64: ${{ needs.release.outputs.sha_x64 }}
           SHA_LINUX: ${{ needs.release.outputs.sha_linux }}
+          # Virtual-hosted S3 URL (valid SSL — the bucket name has no dots).
+          S3_HOST: ${{ env.S3_BUCKET }}.s3.${{ env.AWS_REGION }}.amazonaws.com
         run: |
           cat > homebrew-tap/Formula/alloy.rb << FORMULA
           # typed: false
@@ -174,7 +201,7 @@ jobs:
 
             on_macos do
               on_arm do
-                url "https://github.com/svetzal/alloy/releases/download/v#{version}/alloy-darwin-arm64.tar.gz"
+                url "https://${S3_HOST}/v#{version}/alloy-darwin-arm64.tar.gz"
                 sha256 "${SHA_ARM64}"
 
                 def install
@@ -183,7 +210,7 @@ jobs:
               end
 
               on_intel do
-                url "https://github.com/svetzal/alloy/releases/download/v#{version}/alloy-darwin-x64.tar.gz"
+                url "https://${S3_HOST}/v#{version}/alloy-darwin-x64.tar.gz"
                 sha256 "${SHA_X64}"
 
                 def install
@@ -194,7 +221,7 @@ jobs:
 
             on_linux do
               on_intel do
-                url "https://github.com/svetzal/alloy/releases/download/v#{version}/alloy-linux-x64.tar.gz"
+                url "https://${S3_HOST}/v#{version}/alloy-linux-x64.tar.gz"
                 sha256 "${SHA_LINUX}"
 
                 def install

@@ -133,9 +133,10 @@ docs link-check on every push and PR to `main`. `.github/workflows/docs.yml`
 deploys the docs site to GitHub Pages. `.github/workflows/release.yml` is
 tag-triggered (`v*`): it verifies the tag matches `cli/Cargo.toml`, then
 cross-compiles the `alloy` CLI for macOS (arm64/x64), Linux x64, and Windows
-x64, attaches the binaries plus a `SHA256SUMS.txt` to a GitHub Release, and
-updates `Formula/alloy.rb` in the shared `svetzal/homebrew-tap` (needs a
-`HOMEBREW_TAP_TOKEN` secret; skipped for pre-release tags).
+x64, attaches the binaries plus a `SHA256SUMS.txt` to a GitHub Release, mirrors
+them to `s3://alloy-releases/`, and updates `Formula/alloy.rb` in the shared
+`svetzal/homebrew-tap` (needs `HOMEBREW_TAP_TOKEN` and `AWS_ACCESS_KEY_ID` /
+`AWS_SECRET_ACCESS_KEY` secrets; the tap update is skipped for pre-release tags).
 
 ## How we build (engineering philosophy)
 
