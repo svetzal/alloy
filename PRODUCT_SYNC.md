@@ -217,13 +217,48 @@ charter endpoint carries no project id in its path (the earlier plan's
 `/api/v1/projects/:key/charter` sketch is superseded by this Phase 2
 convention).
 
-### Phase 4 — Rust CLI (`cli/`)
+### Phase 4 — Rust CLI (`cli/`) ✅ Complete
 
 clap + reqwest + serde; `.alloy_env` loader (`ALLOY_API_HOST` /
 `ALLOY_API_TOKEN`, no dir-tree walk, gitignored); subcommands `init`,
 `projects`, `intent create/list/show/update/remove` + transitions,
 `charter [set]`, `validate`, `docs --agents`; `--json` + exit codes;
 cross-compiled release binaries.
+
+**Delivered** (trunk-based on `main`; `cargo fmt --check`, `cargo clippy
+--all-targets -- -D warnings`, and `cargo test` all green; smoke-tested
+end-to-end against a running backend):
+
+- `cli/` crate (`alloy-cli`, binary `alloy`) following the repo's
+  functional-core / imperative-shell split: command logic is written against an
+  `Api` **gateway trait** (`src/api.rs`) and unit-tested with an in-memory fake
+  (`src/testsupport.rs`); the real `reqwest` blocking client is the thin
+  `HttpApi` in `src/http.rs`.
+- `Config` loader for `.alloy_env` (`ALLOY_API_HOST` / `ALLOY_API_TOKEN`, cwd
+  only, blank/comment-tolerant, trailing-slash-stripped, actionable error when
+  missing); both `cli/target/` and `.alloy_env` added to `.gitignore`.
+- Commands: `project show|set`, `charter show|set` (partial upsert — a single
+  `--field` does not clear the others), `intent list|show|create|update|remove`
+  + `accept|activate|deprecate|contradict|supersede [--by]`, `validate`, and
+  `docs --agents [--output]`. Global `--json` emits the shared
+  `{success, data, error}` envelope; exit code `0`/`1` (and `1` from `validate`
+  on any error-level finding).
+
+**Deviations / sequencing:**
+
+- **`init` + skill embedding moved to Phase 5.** The `init` command's whole
+  purpose is to write out the embedded agent skill via `include_str!`, which
+  needs the Phase 5 skill *content* to exist. Building it here would mean
+  stubbing then rebuilding it, so it lands with the skill in Phase 5.
+- **`validate` is intentionally shallow for now** (slug well-formedness +
+  uniqueness, known lifecycle statuses, charter-presence warning). Resolving a
+  record's `supersedes_id` to a sibling record isn't possible from the
+  token-scoped API today — the record JSON exposes `supersedes_id` as a UUID but
+  no record's own UUID — so deeper cross-record integrity is deferred to Phase 6
+  (and will likely need the API to serialize the supersede link as a slug).
+- **Cross-compiled release binaries** are not yet produced here; the release
+  profile is configured (`strip`, `lto`) and CI packaging folds in with Phase 6
+  (Rust CI + the API surface into the quality gate).
 
 ### Phase 5 — Agent skill
 
