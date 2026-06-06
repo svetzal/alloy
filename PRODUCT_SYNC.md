@@ -325,12 +325,20 @@ warnings`, `cargo test` — green):
   earlier Phase 4 deviation ("release profile configured but binaries not
   produced") is now resolved.
 
-This closes the parity baseline against the et model. The et release pipeline's
-**S3 mirror and Homebrew-tap formula update** are deliberately *not* mirrored:
-they depend on et-specific infrastructure (an S3 bucket, a `homebrew-tap` repo)
-and secrets (`AWS_*`, `HOMEBREW_TAP_TOKEN`) that Alloy does not have. A GitHub
-Release with verifiable per-platform binaries is the self-contained equivalent;
-an S3/Homebrew distribution channel can layer on later if Alloy wants one.
+- **Homebrew distribution** — the `release` job packages the Unix binaries as
+  `.tar.gz`, attaches them to the GitHub Release, and exports their SHA-256s as
+  job outputs; an `update-homebrew` job then writes `Formula/alloy.rb` into the
+  shared **`svetzal/homebrew-tap`** (the same tap et/foundry/hopper use) pointing
+  at the release tarball URLs, so `brew install svetzal/tap/alloy` works. It
+  needs a `HOMEBREW_TAP_TOKEN` repo secret with push access to the tap, and is
+  skipped for pre-release tags (those containing `-`). The SHAs are computed in
+  the same job that creates and uploads the tarballs, so the formula's checksum
+  always matches the published asset.
+
+This closes the parity baseline against the et model. The only et release stage
+*not* mirrored is the **S3 mirror**: et uses S3 as the Homebrew download source,
+but since the Alloy repo is public, the formula points straight at the GitHub
+Release assets — no bucket or `AWS_*` secrets required.
 
 ## Settled defaults (override if needed)
 

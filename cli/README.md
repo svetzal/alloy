@@ -77,11 +77,30 @@ logic is written against the `Api` gateway trait (in `src/api.rs`) and tested
 with an in-memory fake; the real `reqwest` implementation is the thin
 `HttpApi` in `src/http.rs`.
 
+## Installation
+
+Via the Homebrew tap (macOS arm64/x64, Linux x64):
+
+```bash
+brew install svetzal/tap/alloy
+```
+
+Or download a binary from the [latest GitHub Release](https://github.com/svetzal/alloy/releases)
+(Unix as `.tar.gz`, Windows as `alloy-windows-x64.exe`); each release ships a
+`SHA256SUMS.txt` to verify the download.
+
 ## Releases
 
-Pushing a `vX.Y.Z` tag triggers `.github/workflows/release.yml`, which verifies
-the tag matches the crate version, cross-compiles per-platform binaries
-(`alloy-darwin-arm64`, `alloy-darwin-x64`, `alloy-linux-x64`,
-`alloy-windows-x64.exe`), and attaches them — with a `SHA256SUMS.txt` — to a
-GitHub Release. To cut a release: bump `version` in `Cargo.toml`, commit, then
-tag (`git tag v0.2.0 && git push origin v0.2.0`).
+Pushing a `vX.Y.Z` tag triggers `.github/workflows/release.yml`, which:
+
+1. verifies the tag matches the crate version,
+2. cross-compiles per-platform binaries (`alloy-darwin-arm64`,
+   `alloy-darwin-x64`, `alloy-linux-x64`, `alloy-windows-x64.exe`),
+3. attaches the Unix tarballs, the Windows `.exe`, and a `SHA256SUMS.txt` to a
+   GitHub Release, and
+4. updates `Formula/alloy.rb` in the shared `svetzal/homebrew-tap` (skipped for
+   pre-release tags containing `-`).
+
+To cut a release: bump `version` in `Cargo.toml`, commit, then tag
+(`git tag v0.2.0 && git push origin v0.2.0`). Updating the tap requires a
+`HOMEBREW_TAP_TOKEN` repo secret with push access to `svetzal/homebrew-tap`.

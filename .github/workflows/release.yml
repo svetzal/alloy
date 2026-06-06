@@ -1,9 +1,10 @@
 name: Release
 
 # Tag-triggered: pushing a `vX.Y.Z` tag cross-compiles the `alloy` CLI for each
-# supported platform and attaches the binaries (plus a SHA256SUMS file) to a
-# GitHub Release. The tag's version must match `cli/Cargo.toml` so the shipped
-# binary's `--version` is truthful.
+# supported platform, attaches the binaries (Unix as `.tar.gz`, Windows as a raw
+# `.exe`) plus a SHA256SUMS file to a GitHub Release, and updates the shared
+# svetzal/homebrew-tap formula. The tag's version must match `cli/Cargo.toml` so
+# the shipped binary's `--version` is truthful.
 
 on:
   push:
@@ -89,6 +90,11 @@ jobs:
     name: Publish GitHub Release
     needs: build
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.shas.outputs.version }}
+      sha_arm64: ${{ steps.shas.outputs.sha_arm64 }}
+      sha_x64: ${{ steps.shas.outputs.sha_x64 }}
+      sha_linux: ${{ steps.shas.outputs.sha_linux }}
 
     steps:
       - name: Download all artifacts
@@ -96,23 +102,122 @@ jobs:
         with:
           path: dist
 
-      - name: Collect binaries and checksums
+      - name: Package binaries and compute checksums
+        id: shas
         shell: bash
         run: |
           mkdir -p release
           # download-artifact v4 nests each artifact under its own directory.
           find dist -type f -exec cp {} release/ \;
           cd release
-          sha256sum * > SHA256SUMS.txt
+
+          # Homebrew needs tarballs (raw binaries don't unpack reliably); each
+          # archive holds the single artifact-named binary, no path prefix.
+          for name in alloy-darwin-arm64 alloy-darwin-x64 alloy-linux-x64; do
+            tar -czf "$name.tar.gz" "$name"
+            rm "$name"
+          done
+
+          sha256sum ./* > SHA256SUMS.txt
           cat SHA256SUMS.txt
+
+          sha() { sha256sum "$1" | cut -d ' ' -f 1; }
+          {
+            echo "version=${GITHUB_REF#refs/tags/v}"
+            echo "sha_arm64=$(sha alloy-darwin-arm64.tar.gz)"
+            echo "sha_x64=$(sha alloy-darwin-x64.tar.gz)"
+            echo "sha_linux=$(sha alloy-linux-x64.tar.gz)"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            release/alloy-darwin-arm64
-            release/alloy-darwin-x64
-            release/alloy-linux-x64
+            release/alloy-darwin-arm64.tar.gz
+            release/alloy-darwin-x64.tar.gz
+            release/alloy-linux-x64.tar.gz
             release/alloy-windows-x64.exe
             release/SHA256SUMS.txt
           generate_release_notes: true
+
+  update-homebrew:
+    name: Update Homebrew tap
+    needs: release
+    runs-on: ubuntu-latest
+    # Skip pre-releases (e.g. v0.2.0-rc1): the `-` marks a pre-release tag.
+    if: ${{ !contains(github.ref, '-') }}
+
+    steps:
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v5
+        with:
+          repository: svetzal/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Write Formula/alloy.rb
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          SHA_ARM64: ${{ needs.release.outputs.sha_arm64 }}
+          SHA_X64: ${{ needs.release.outputs.sha_x64 }}
+          SHA_LINUX: ${{ needs.release.outputs.sha_linux }}
+        run: |
+          cat > homebrew-tap/Formula/alloy.rb << FORMULA
+          # typed: false
+          # frozen_string_literal: true
+
+          class Alloy < Formula
+            desc "Thin-client CLI for capturing and refining engineering intent"
+            homepage "https://github.com/svetzal/alloy"
+            version "${VERSION}"
+            license "LicenseRef-Proprietary"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/svetzal/alloy/releases/download/v#{version}/alloy-darwin-arm64.tar.gz"
+                sha256 "${SHA_ARM64}"
+
+                def install
+                  bin.install "alloy-darwin-arm64" => "alloy"
+                end
+              end
+
+              on_intel do
+                url "https://github.com/svetzal/alloy/releases/download/v#{version}/alloy-darwin-x64.tar.gz"
+                sha256 "${SHA_X64}"
+
+                def install
+                  bin.install "alloy-darwin-x64" => "alloy"
+                end
+              end
+            end
+
+            on_linux do
+              on_intel do
+                url "https://github.com/svetzal/alloy/releases/download/v#{version}/alloy-linux-x64.tar.gz"
+                sha256 "${SHA_LINUX}"
+
+                def install
+                  bin.install "alloy-linux-x64" => "alloy"
+                end
+              end
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/alloy --version")
+            end
+          end
+          FORMULA
+
+      - name: Commit and push
+        run: |
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/alloy.rb
+          if git diff --staged --quiet; then
+            echo "Formula unchanged — nothing to commit."
+          else
+            git commit -m "Update alloy to ${{ needs.release.outputs.version }}"
+            git push
+          fi
