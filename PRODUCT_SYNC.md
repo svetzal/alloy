@@ -1,0 +1,195 @@
+# Product Sync — Bringing Alloy to Epilogue Tracker Baseline Parity
+
+This is a working implementation plan, not product spec. The authoritative
+domain spec lives in `docs/` (read-only). This document tracks the baseline
+infrastructure work needed to make Alloy operate like its sibling product
+[Epilogue Tracker](https://github.com/) (`et`) — multiple projects, namespaced
+keys, a per-project charter, a JSON API, a thin-client CLI, and a corresponding
+Claude Code skill — with the CLI implemented in **Rust** rather than
+TypeScript.
+
+## Reference model: how Epilogue Tracker works
+
+Epilogue Tracker (at `~/Work/Projects/Mojility/epilogue-tracker`) establishes
+the baseline pattern we are replicating:
+
+- **Phoenix web app backend** owns all data in Postgres.
+- **Thin-client CLI** (`et`, TS/Bun, compiled to per-platform binaries) talks
+  to the backend over a REST API. It holds no local data.
+- **Per-project config** is a single `.et_env` file in the project root
+  (`ET_API_HOST`, `ET_API_TOKEN`), read from `cwd` with no directory-tree walk,
+  and gitignored because it holds a secret. "Multiple projects" on the client
+  is simply one `.et_env` per directory.
+- **Product charter** stored server-side: `mission`, `target_audience`,
+  `problem_space`, `differentiators`, `out_of_scope`; edited via
+  `et charter set --field`.
+- **User-provided keys**: entity IDs match `^[a-zA-Z0-9_-]+$`, snake_case by
+  convention, referenced directly between entities.
+- **Embedded agent skill**: `SKILL.md` + `references/` + `workflows/`, installed
+  via `et init [--global]`, version-stamped in frontmatter (`et_version`). The
+  skill *teaches* the CLI; it does not shell out on its own.
+- **Conventions**: `--json` on every command, `{success, data, error}` response
+  envelope, exit codes, a `validate` command for referential integrity, and a
+  `docs --agents` generator.
+
+## Current Alloy state
+
+- First domain slice only: `engineering_intent_records` (schema, `Alloy.Intent`
+  context, LiveView CRUD). Records use UUID primary keys.
+- No `projects` table — although the data model in `docs/` lists `project_id`
+  on most entities. The intent record carries a loose `scope` jsonb holding a
+  `"project"` string.
+- No JSON API (the router's `:api` pipeline exists but is unused), no API
+  tokens, no auth.
+- No product charter.
+- No CLI, no agent skill.
+
+## Approved decisions (2026-06-06)
+
+| Decision | Choice |
+| -------- | ------ |
+| CLI language | **Rust** (cargo crate) |
+| CLI location | **In this repo**, `cli/` crate (monorepo, like et's `apps/cli`) |
+| CLI transport | **HTTP API parity** — thin client over a new Phoenix JSON API + per-project bearer token in `.alloy_env` |
+| Keys | **Both** — namespaced entity keys (`project.intent.slug`) **and** per-project API tokens |
+| Charter | **Alloy-native, one per project**, with et's five fields |
+
+The `.alloy/` file projection for Foundry is a **separate, later concern** —
+not part of this baseline.
+
+## Gap list
+
+Each item: what et establishes → what Alloy has today → the gap to close.
+
+### Backend (Phoenix)
+
+1. **Projects as a first-class entity (multi-project)**
+   - *et:* backend owns "products"; client multi-project is one `.et_env` per dir.
+   - *Alloy:* data model lists `project_id` but there is no projects
+     table/schema/context; intent records hold only a `scope.project` string.
+   - *Gap:* `projects` table + `Alloy.Projects` context + `Project` schema
+     (unique `key` slug, `name`, timestamps); relational `project_id` FK on
+     `engineering_intent_records` (migrating off the loose `scope.project`
+     string); Projects LiveView + a project switcher; project-scoped intent
+     LiveViews.
+
+2. **Keys / identifiers ("build keys for a project")**
+   - *et:* user-provided IDs, `^[a-zA-Z0-9_-]+$`, snake_case, no namespacing.
+   - *Alloy:* UUID PKs only; the spec's JSON shape shows `alloy.intent.example`
+     but nothing generates it.
+   - *Gap:* a unique project `key`/slug; a stable, human-readable record key
+     namespaced by project (`<project_key>.intent.<slug>`); derivation rules,
+     a validation regex (`^[a-z0-9_-]+$`), uniqueness, and immutability after
+     creation. Plus per-project **API tokens** (see item 3).
+
+3. **JSON API + token auth (the CLI's backend)**
+   - *et:* CLI hits `${HOST}/api/...` with a bearer token; `{success, data,
+     error}` envelope; lifecycle transition endpoints.
+   - *Alloy:* only `/` + LiveViews; `:api` pipeline unused; no controllers, no
+     tokens.
+   - *Gap:* `/api/v1` controllers for projects + intent records (CRUD **and**
+     the lifecycle transitions already modeled — accept/activate/supersede/
+     contradict) + charter; an `api_tokens` table (per project) + bearer-auth
+     plug; the shared response envelope.
+
+4. **Product charter**
+   - *et:* server-side charter, five fields, `et charter [set --field]`.
+   - *Alloy:* no charter concept.
+   - *Gap:* a `charters` table (one per project; `mission`, `target_audience`,
+     `problem_space`, `differentiators`, `out_of_scope`) + context + LiveView +
+     API endpoint + CLI command. *Spec note:* Alloy's spec frames product intent
+     as flowing in from Epilogue Tracker; we are choosing an Alloy-native
+     charter regardless, to satisfy "hold a product charter" directly.
+
+### CLI (Rust `alloy`)
+
+1. **The Rust CLI itself**
+   - *et:* `et` (Bun/TS) → per-platform binaries; `--json` everywhere; exit
+     codes; `validate`; `docs --agents`; `init`.
+   - *Alloy:* none.
+   - *Gap:* a Rust crate (clap + reqwest + serde) with subcommands mirroring
+     et — `init`, `projects`, `intent create/list/show/update/remove` +
+     lifecycle transitions, `charter [set]`, `validate`, `docs --agents`;
+     `--json` + exit codes; cross-compiled release binaries.
+
+2. **Per-project CLI config + gitignore**
+   - *et:* `.et_env` (KEY=VALUE) in `cwd`, no dir-tree walk, gitignored.
+   - *Alloy:* none.
+   - *Gap:* an `.alloy_env` analog (`ALLOY_API_HOST`, `ALLOY_API_TOKEN`), a
+     loader, a gitignore entry, and a web-UI flow to mint a project token to
+     paste in.
+
+### Agent skill
+
+1. **`alloy` skill, installed by the CLI**
+   - *et:* skill embedded in the binary, installed via `et init [--global]`,
+     version-stamped; `SKILL.md` + `references/` + `workflows/`; teaches the CLI.
+   - *Alloy:* repo docs exist, but no agent skill for any CLI.
+   - *Gap:* author `skills/alloy/` (SKILL.md + cli-reference + intent-model +
+     workflows) teaching the six-field engineering-intent model, lifecycle, key
+     scheme, and charter; `alloy init` installs it via `include_str!`,
+     version-stamped (`alloy_version`).
+
+### Cross-cutting parity polish
+
+1. `validate` referential integrity (project exists, `supersedes_id` resolves,
+   key uniqueness); `docs --agents` content; skill upgrade/downgrade-guard
+   semantics; Rust CI + the API surface folded into the quality gate.
+
+## Phased implementation plan
+
+Each phase lands incrementally on `main` (trunk-based), tests-first, through the
+full quality gate.
+
+### Phase 1 — Projects + keys (DB foundation)
+
+`projects` table/schema/context (unique `key` slug, `name`); add `project_id`
+FK + namespaced `key` to `engineering_intent_records` (migrating the loose
+`scope.project` string onto the relation); key derivation + validation
+(immutable after create); Projects LiveView + a project switcher; make the
+intent LiveViews project-scoped.
+
+### Phase 2 — JSON API + tokens
+
+`api_tokens` table (per project), bearer-auth plug, `/api/v1` controllers for
+projects + intent records (CRUD and lifecycle transitions), shared
+`{success, data, error}` envelope, token-generation UI in the Projects LiveView.
+
+### Phase 3 — Charter
+
+`charters` table (one per project; five fields), context, LiveView, and
+`/api/v1/projects/:key/charter` endpoint.
+
+### Phase 4 — Rust CLI (`cli/`)
+
+clap + reqwest + serde; `.alloy_env` loader (`ALLOY_API_HOST` /
+`ALLOY_API_TOKEN`, no dir-tree walk, gitignored); subcommands `init`,
+`projects`, `intent create/list/show/update/remove` + transitions,
+`charter [set]`, `validate`, `docs --agents`; `--json` + exit codes;
+cross-compiled release binaries.
+
+### Phase 5 — Agent skill
+
+`skills/alloy/` (SKILL.md + `references/` + `workflows/`) teaching the six-field
+model, lifecycle, key scheme, and charter; `alloy init [--global]` installs it
+via `include_str!`, version-stamped.
+
+### Phase 6 — Parity polish
+
+`validate` referential integrity, `docs --agents` content, Rust CI + API
+surface folded into the quality gate.
+
+## Settled defaults (override if needed)
+
+- `/api/v1` versioning from the start.
+- Per-project (not per-user) API tokens.
+- Entity keys immutable after creation.
+- snake_case slugs.
+- `.alloy_env` filename, mirroring `.et_env`.
+
+## Out of scope for this baseline
+
+- Foundry integration and the `.alloy/` file projection (separate, later).
+- Elicitation interviews, codebase archaeology, formation-brief generation,
+  prompt packs, and trace feedback — these are downstream MVP features that
+  build on this baseline.
