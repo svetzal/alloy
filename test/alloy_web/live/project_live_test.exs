@@ -86,4 +86,57 @@ defmodule AlloyWeb.ProjectLiveTest do
       assert html =~ project.key
     end
   end
+
+  describe "Show — API tokens" do
+    test "shows an empty state when there are no tokens", %{conn: conn} do
+      project = project_fixture()
+      {:ok, _live, html} = live(conn, ~p"/projects/#{project}")
+
+      assert html =~ "API Tokens"
+      assert html =~ "No tokens yet"
+    end
+
+    test "mints a token and reveals the secret once", %{conn: conn} do
+      project = project_fixture()
+      {:ok, live, _html} = live(conn, ~p"/projects/#{project}")
+
+      html =
+        live
+        |> form("#token-form", token: %{name: "laptop"})
+        |> render_submit()
+
+      assert html =~ "will not be shown again"
+      assert html =~ "ALLOY_API_TOKEN=alloy_"
+      assert html =~ "laptop"
+      assert has_element?(live, "#api-tokens")
+    end
+
+    test "shows a validation error for a blank name", %{conn: conn} do
+      project = project_fixture()
+      {:ok, live, _html} = live(conn, ~p"/projects/#{project}")
+
+      html =
+        live
+        |> form("#token-form", token: %{name: ""})
+        |> render_submit()
+
+      assert html =~ "can&#39;t be blank"
+      refute html =~ "will not be shown again"
+    end
+
+    test "revokes a token", %{conn: conn} do
+      project = project_fixture()
+      {:ok, token, _secret} = Alloy.Projects.create_api_token(project, %{name: "doomed"})
+      {:ok, live, _html} = live(conn, ~p"/projects/#{project}")
+
+      assert has_element?(live, "#token-#{token.id}")
+
+      live
+      |> element("#token-#{token.id} button", "Revoke")
+      |> render_click()
+
+      refute has_element?(live, "#token-#{token.id}")
+      assert Alloy.Projects.list_api_tokens(project) == []
+    end
+  end
 end

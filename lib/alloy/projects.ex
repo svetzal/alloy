@@ -107,6 +107,13 @@ defmodule Alloy.Projects do
   def delete_api_token(%ApiToken{} = token), do: Repo.delete(token)
 
   @doc """
+  Returns a changeset for an API token (e.g. to drive the mint-token form).
+  """
+  def change_api_token(token \\ %ApiToken{}, attrs \\ %{}) do
+    ApiToken.changeset(token, attrs)
+  end
+
+  @doc """
   Authenticates a plaintext bearer `secret`, returning the owning project (with
   the matching token) or `nil`.
 
