@@ -141,13 +141,27 @@ Each item: what et establishes → what Alloy has today → the gap to close.
 Each phase lands incrementally on `main` (trunk-based), tests-first, through the
 full quality gate.
 
-### Phase 1 — Projects + keys (DB foundation)
+### Phase 1 — Projects + keys (DB foundation) ✅ Complete
 
 `projects` table/schema/context (unique `key` slug, `name`); add `project_id`
 FK + namespaced `key` to `engineering_intent_records` (migrating the loose
 `scope.project` string onto the relation); key derivation + validation
 (immutable after create); Projects LiveView + a project switcher; make the
 intent LiveViews project-scoped.
+
+**Delivered** (trunk-based on `main`, full quality gate + dialyzer green):
+
+- `38e4595` — `Alloy.Slug` (pure slugify/validation); `projects` table +
+  `Alloy.Projects.Project` schema (key derived from name, slug-validated,
+  immutable after create) + `Alloy.Projects` context.
+- `f69fd95` — Projects LiveView CRUD under `/projects` (keyed by slug via
+  `Phoenix.Param`); Alloy-branded nav.
+- `6e90f64` — intent records related to projects: `project_id` FK +
+  immutable project-local `slug` (backfilled off `scope.project`), unique
+  `(project_id, slug)` index; `Record.full_key/1` →
+  `<project_key>.intent.<slug>`; project-scoped `Alloy.Intent` context;
+  intent LiveViews nested under `/projects/:project_key/intents`; nav
+  project switcher.
 
 ### Phase 2 — JSON API + tokens
 
