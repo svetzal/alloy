@@ -163,11 +163,35 @@ intent LiveViews project-scoped.
   intent LiveViews nested under `/projects/:project_key/intents`; nav
   project switcher.
 
-### Phase 2 — JSON API + tokens
+### Phase 2 — JSON API + tokens ✅ Complete
 
 `api_tokens` table (per project), bearer-auth plug, `/api/v1` controllers for
 projects + intent records (CRUD and lifecycle transitions), shared
 `{success, data, error}` envelope, token-generation UI in the Projects LiveView.
+
+**Delivered** (trunk-based on `main`, full quality gate + dialyzer green):
+
+- `c4cf331` — lifecycle transitions in the Intent core
+  (accept/activate/deprecate/contradict/supersede) via a state-machine
+  `Record.transition_changeset/2`; `:contradicted`/`:superseded` are terminal;
+  `supersede_record/2` can atomically link a replacement.
+- `e3e4570` — per-project API tokens: `api_tokens` table +
+  `Alloy.Projects.ApiToken` (generate `alloy_<random>`, store only a SHA-256
+  hash); `Projects` context create/list/delete + `authenticate_token/1`;
+  `AlloyWeb.Plugs.ApiAuth` (Bearer → `conn.assigns.current_project`, 401 on
+  failure); `AlloyWeb.Api.Envelope` shared `{success, data, error}` shape.
+- `97e4f00` — `/api/v1` JSON controllers: `ProjectController` (show/update the
+  token-scoped project) and `IntentRecordController` (CRUD + a `POST` sub-path
+  per transition; supersede links a replacement via `{"by": slug}`);
+  `FallbackController` maps `{:error, changeset}` → 422 and `nil` → 404; record
+  + project JSON serializers; `Intent.get_record_by_slug/2` (non-raising).
+- `b732ffe` — token-generation UI in the project Show LiveView: mint a named
+  token, reveal its secret once as a ready-to-paste `.alloy_env` snippet, list,
+  and revoke.
+
+The bearer token identifies the project, so `/api/v1` routes carry no project
+id; project create/delete stay web-UI concerns. Records are addressed by their
+project-local slug.
 
 ### Phase 3 — Charter
 
