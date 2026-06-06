@@ -14,6 +14,10 @@ defmodule AlloyWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :api_authenticated do
+    plug AlloyWeb.Plugs.ApiAuth
+  end
+
   scope "/", AlloyWeb do
     pipe_through :browser
 
@@ -30,10 +34,27 @@ defmodule AlloyWeb.Router do
     live "/projects/:project_key/intents/:slug/edit", IntentRecordLive.Form, :edit
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", AlloyWeb do
-  #   pipe_through :api
-  # end
+  scope "/api/v1", AlloyWeb.Api do
+    pipe_through [:api, :api_authenticated]
+
+    # The bearer token identifies the project, so it is not in the path.
+    get "/project", ProjectController, :show
+    patch "/project", ProjectController, :update
+    put "/project", ProjectController, :update
+
+    get "/intents", IntentRecordController, :index
+    post "/intents", IntentRecordController, :create
+    get "/intents/:slug", IntentRecordController, :show
+    patch "/intents/:slug", IntentRecordController, :update
+    put "/intents/:slug", IntentRecordController, :update
+    delete "/intents/:slug", IntentRecordController, :delete
+
+    post "/intents/:slug/accept", IntentRecordController, :accept
+    post "/intents/:slug/activate", IntentRecordController, :activate
+    post "/intents/:slug/deprecate", IntentRecordController, :deprecate
+    post "/intents/:slug/contradict", IntentRecordController, :contradict
+    post "/intents/:slug/supersede", IntentRecordController, :supersede
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:alloy, :dev_routes) do

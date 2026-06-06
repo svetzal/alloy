@@ -43,6 +43,17 @@ defmodule Alloy.Intent do
   end
 
   @doc """
+  Gets a single record by its project-local slug, with its project preloaded, or
+  `nil` if no such record exists in the project.
+  """
+  def get_record_by_slug(%Project{} = project, slug) do
+    case Repo.get_by(Record, project_id: project.id, slug: slug) do
+      nil -> nil
+      record -> Repo.preload(record, :project)
+    end
+  end
+
+  @doc """
   Creates an engineering intent record under a project.
   """
   def create_record(%Project{} = project, attrs \\ %{}) do
