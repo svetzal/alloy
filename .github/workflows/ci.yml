@@ -85,6 +85,34 @@ jobs:
       - name: Dialyzer
         run: mix dialyzer
 
+  cli:
+    name: Rust CLI quality gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli
+
+      - name: Format check
+        run: cargo fmt --check
+
+      - name: Clippy (warnings as errors)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test
+
   docs:
     name: Docs build (link check)
     runs-on: ubuntu-latest

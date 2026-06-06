@@ -127,9 +127,10 @@ generator for **code/API** reference — separate concern from this prose site.
 ## CI
 
 `.github/workflows/ci.yml` runs the full Elixir quality gate (with a
-Postgres service and cached deps/PLT) plus the docs link-check on every
-push and PR to `main`. `.github/workflows/docs.yml` deploys the docs site
-to GitHub Pages.
+Postgres service and cached deps/PLT), the Rust CLI gate (`cargo fmt --check`,
+`cargo clippy --all-targets -- -D warnings`, `cargo test` in `cli/`), and the
+docs link-check on every push and PR to `main`. `.github/workflows/docs.yml`
+deploys the docs site to GitHub Pages.
 
 ## How we build (engineering philosophy)
 
