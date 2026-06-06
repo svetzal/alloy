@@ -19,6 +19,11 @@ defmodule AlloyWeb.Router do
 
     get "/", PageController, :home
 
+    live "/projects", ProjectLive.Index, :index
+    live "/projects/new", ProjectLive.Form, :new
+    live "/projects/:key", ProjectLive.Show, :show
+    live "/projects/:key/edit", ProjectLive.Form, :edit
+
     live "/intents", IntentRecordLive.Index, :index
     live "/intents/new", IntentRecordLive.Form, :new
     live "/intents/:id", IntentRecordLive.Show, :show

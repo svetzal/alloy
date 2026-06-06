@@ -16,6 +16,7 @@ defmodule Alloy.Projects.Project do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @derive {Phoenix.Param, key: :key}
 
   schema "projects" do
     field :key, :string
