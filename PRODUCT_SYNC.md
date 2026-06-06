@@ -314,13 +314,23 @@ warnings`, `cargo test` — green):
   fmt-check, clippy `-D warnings`, and tests, cached via `Swatinem/rust-cache`)
   on every push/PR to `main`, alongside the Elixir gate and the docs
   link-check.
+- **Release-binary packaging** — `.github/workflows/release.yml` is
+  tag-triggered (`v*`): a `verify` job asserts the tag matches
+  `cli/Cargo.toml` (so the shipped `--version` is truthful), then a
+  per-platform `build` matrix cross-compiles the `alloy` CLI on native-arch
+  runners — `aarch64-apple-darwin` (macos-latest), `x86_64-apple-darwin`
+  (macos-13), `x86_64-unknown-linux-gnu` (ubuntu-latest),
+  `x86_64-pc-windows-msvc` (windows-latest) — and a `release` job attaches the
+  four binaries plus a generated `SHA256SUMS.txt` to a GitHub Release. The
+  earlier Phase 4 deviation ("release profile configured but binaries not
+  produced") is now resolved.
 
-**Open thread (distribution, not parity):** cross-compiled **release-binary
-packaging** is still not produced (the release profile is configured, and the
-quality gate now runs in CI, but there is no tag-triggered build that
-cross-compiles and uploads per-platform `alloy` binaries the way et ships them).
-That is a packaging/distribution concern rather than baseline parity, and is the
-one remaining item from the et model.
+This closes the parity baseline against the et model. The et release pipeline's
+**S3 mirror and Homebrew-tap formula update** are deliberately *not* mirrored:
+they depend on et-specific infrastructure (an S3 bucket, a `homebrew-tap` repo)
+and secrets (`AWS_*`, `HOMEBREW_TAP_TOKEN`) that Alloy does not have. A GitHub
+Release with verifiable per-platform binaries is the self-contained equivalent;
+an S3/Homebrew distribution channel can layer on later if Alloy wants one.
 
 ## Settled defaults (override if needed)
 

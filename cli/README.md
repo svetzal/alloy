@@ -76,3 +76,12 @@ The crate follows the repo's functional-core / imperative-shell split: command
 logic is written against the `Api` gateway trait (in `src/api.rs`) and tested
 with an in-memory fake; the real `reqwest` implementation is the thin
 `HttpApi` in `src/http.rs`.
+
+## Releases
+
+Pushing a `vX.Y.Z` tag triggers `.github/workflows/release.yml`, which verifies
+the tag matches the crate version, cross-compiles per-platform binaries
+(`alloy-darwin-arm64`, `alloy-darwin-x64`, `alloy-linux-x64`,
+`alloy-windows-x64.exe`), and attaches them — with a `SHA256SUMS.txt` — to a
+GitHub Release. To cut a release: bump `version` in `Cargo.toml`, commit, then
+tag (`git tag v0.2.0 && git push origin v0.2.0`).

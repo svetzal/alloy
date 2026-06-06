@@ -130,7 +130,10 @@ generator for **code/API** reference — separate concern from this prose site.
 Postgres service and cached deps/PLT), the Rust CLI gate (`cargo fmt --check`,
 `cargo clippy --all-targets -- -D warnings`, `cargo test` in `cli/`), and the
 docs link-check on every push and PR to `main`. `.github/workflows/docs.yml`
-deploys the docs site to GitHub Pages.
+deploys the docs site to GitHub Pages. `.github/workflows/release.yml` is
+tag-triggered (`v*`): it verifies the tag matches `cli/Cargo.toml`, then
+cross-compiles the `alloy` CLI for macOS (arm64/x64), Linux x64, and Windows
+x64 and attaches the binaries plus a `SHA256SUMS.txt` to a GitHub Release.
 
 ## How we build (engineering philosophy)
 
