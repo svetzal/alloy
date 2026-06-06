@@ -6,9 +6,10 @@ as software changes. It sits above the Rust "Foundry" execution engine
 and beside Epilogue Tracker, integrating with Foundry through versioned
 artifacts.
 
-The authoritative product specification lives in [`docs/`](docs/index.md).
-For how to develop in this repo — stack, commands, the quality gate, and
-conventions — see [`AGENTS.md`](AGENTS.md).
+The authoritative product specification lives in [`docs/`](docs/index.md)
+and is published at <https://vetzal.com/alloy/>. For how to develop in
+this repo — stack, commands, the quality gate, and conventions — see
+[`AGENTS.md`](AGENTS.md).
 
 ## Quick start
 
@@ -36,3 +37,9 @@ philosophy.
 - Phoenix: https://hexdocs.pm/phoenix/overview.html
 - Phoenix LiveView: https://hexdocs.pm/phoenix_live_view
 - Ecto: https://hexdocs.pm/ecto
+
+## License
+
+Proprietary — © 2026 Mojility Inc. All rights reserved. See [`LICENSE`](LICENSE).
+The source is public for visibility; it is not open source. Licensing
+inquiries: licensing@mojility.ca
