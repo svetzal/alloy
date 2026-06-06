@@ -35,6 +35,11 @@ alloy-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# VitePress docs site (Bun-managed at the repo root).
+/node_modules/
+/docs/.vitepress/cache/
+/docs/.vitepress/dist/
+
 # Dialyzer PLT files (rebuilt from deps; cached in CI).
 /priv/plts/
 
