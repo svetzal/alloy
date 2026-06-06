@@ -1,18 +1,38 @@
 # Alloy
 
-To start your Phoenix server:
+Alloy is a Phoenix/LiveView administration product for capturing and
+refining **engineering intent** — the capabilities a team must preserve
+as software changes. It sits above the Rust "Foundry" execution engine
+and beside Epilogue Tracker, integrating with Foundry through versioned
+artifacts.
 
-* Run `mix setup` to install and setup dependencies
-* Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
+The authoritative product specification lives in [`docs/`](docs/index.md).
+For how to develop in this repo — stack, commands, the quality gate, and
+conventions — see [`AGENTS.md`](AGENTS.md).
 
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+## Quick start
 
-Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
+```bash
+mix setup          # deps + database + assets
+mix phx.server     # http://localhost:4000
+```
+
+Database credentials default to the local OS user (trust-auth Postgres)
+and are overridable via `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_NAME`.
+
+## Quality gate
+
+```bash
+mix quality        # format, compile (warnings as errors), credo, sobelow, test
+mix dialyzer       # type analysis
+mix deps.audit     # dependency vulnerability scan
+```
+
+See [`AGENTS.md`](AGENTS.md) for the full gate and engineering
+philosophy.
 
 ## Learn more
 
-* Official website: https://www.phoenixframework.org/
-* Guides: https://hexdocs.pm/phoenix/overview.html
-* Docs: https://hexdocs.pm/phoenix
-* Forum: https://elixirforum.com/c/phoenix-forum
-* Source: https://github.com/phoenixframework/phoenix
+- Phoenix: https://hexdocs.pm/phoenix/overview.html
+- Phoenix LiveView: https://hexdocs.pm/phoenix_live_view
+- Ecto: https://hexdocs.pm/ecto
