@@ -69,6 +69,57 @@ defmodule Alloy.Intent do
   end
 
   @doc """
+  Accepts a record (`hypothesized`/`proposed` → `accepted`).
+  """
+  def accept_record(%Record{} = record), do: apply_transition(record, :accept)
+
+  @doc """
+  Activates a record (`accepted` → `active`).
+  """
+  def activate_record(%Record{} = record), do: apply_transition(record, :activate)
+
+  @doc """
+  Deprecates a record (`accepted`/`active` → `deprecated`).
+  """
+  def deprecate_record(%Record{} = record), do: apply_transition(record, :deprecate)
+
+  @doc """
+  Contradicts a record (any non-terminal state → `contradicted`).
+  """
+  def contradict_record(%Record{} = record), do: apply_transition(record, :contradict)
+
+  @doc """
+  Supersedes a record (any non-terminal state → `superseded`).
+
+  With a `superseding` record, the two are linked (the superseding record's
+  `supersedes_id` is pointed at the old one) and both writes happen atomically:
+  if the old record cannot be superseded, the link is rolled back.
+  """
+  def supersede_record(record, superseding \\ nil)
+
+  def supersede_record(%Record{} = record, nil), do: apply_transition(record, :supersede)
+
+  def supersede_record(%Record{} = record, %Record{} = superseding) do
+    Repo.transaction(fn ->
+      {:ok, _} =
+        superseding
+        |> Ecto.Changeset.change(supersedes_id: record.id)
+        |> Repo.update()
+
+      case apply_transition(record, :supersede) do
+        {:ok, superseded} -> superseded
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  defp apply_transition(%Record{} = record, event) do
+    record
+    |> Record.transition_changeset(event)
+    |> Repo.update()
+  end
+
+  @doc """
   Returns a changeset for tracking record changes (e.g. to drive a form).
 
   Picks the create or update changeset based on whether the record is already

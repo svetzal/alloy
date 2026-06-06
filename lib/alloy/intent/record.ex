@@ -121,6 +121,43 @@ defmodule Alloy.Intent.Record do
     |> common_validations()
   end
 
+  # Lifecycle transitions: which source states each event may fire from, and the
+  # state it moves the record into. See `docs/intent-model/record-lifecycle.md`.
+  # `:contradicted` and `:superseded` are terminal — no event lists them as a
+  # source, so a record in either state can no longer transition.
+  @transitions %{
+    accept: {[:hypothesized, :proposed], :accepted},
+    activate: {[:accepted], :active},
+    deprecate: {[:accepted, :active], :deprecated},
+    contradict: {[:hypothesized, :proposed, :accepted, :active, :deprecated], :contradicted},
+    supersede: {[:hypothesized, :proposed, :accepted, :active, :deprecated], :superseded}
+  }
+
+  @doc "The set of lifecycle transition events."
+  def transition_events, do: Map.keys(@transitions)
+
+  @doc """
+  Builds a changeset that fires a lifecycle `event` on the record.
+
+  The change is only applied when the record's current `status` is a legal
+  source state for the event; otherwise the changeset carries a `:status` error
+  and is invalid, so the transition is rejected.
+  """
+  def transition_changeset(%__MODULE__{status: status} = record, event)
+      when is_map_key(@transitions, event) do
+    {allowed_from, target} = Map.fetch!(@transitions, event)
+    changeset = change(record)
+
+    if status in allowed_from do
+      put_change(changeset, :status, target)
+    else
+      add_error(changeset, :status, "cannot #{event} a record that is #{status}",
+        validation: :transition,
+        event: event
+      )
+    end
+  end
+
   defp common_validations(changeset) do
     changeset
     |> validate_number(:confidence,

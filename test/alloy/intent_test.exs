@@ -226,4 +226,72 @@ defmodule Alloy.IntentTest do
       assert Record.full_key(Intent.get_record!(record.id)) == "#{project.key}.intent.my_record"
     end
   end
+
+  describe "lifecycle transitions" do
+    test "accept_record/1 moves a proposed record to :accepted", %{project: project} do
+      record = record_fixture(project: project, status: :proposed)
+      assert {:ok, %Record{status: :accepted}} = Intent.accept_record(record)
+    end
+
+    test "accept_record/1 also accepts a hypothesized record", %{project: project} do
+      record = record_fixture(project: project, status: :hypothesized)
+      assert {:ok, %Record{status: :accepted}} = Intent.accept_record(record)
+    end
+
+    test "activate_record/1 moves an accepted record to :active", %{project: project} do
+      record = record_fixture(project: project, status: :accepted)
+      assert {:ok, %Record{status: :active}} = Intent.activate_record(record)
+    end
+
+    test "deprecate_record/1 moves an active record to :deprecated", %{project: project} do
+      record = record_fixture(project: project, status: :active)
+      assert {:ok, %Record{status: :deprecated}} = Intent.deprecate_record(record)
+    end
+
+    test "contradict_record/1 moves an active record to :contradicted", %{project: project} do
+      record = record_fixture(project: project, status: :active)
+      assert {:ok, %Record{status: :contradicted}} = Intent.contradict_record(record)
+    end
+
+    test "rejects an illegal transition and leaves the record untouched", %{project: project} do
+      record = record_fixture(project: project, status: :proposed)
+
+      assert {:error, changeset} = Intent.activate_record(record)
+      assert %{status: [_]} = errors_on(changeset)
+      assert Intent.get_record!(record.id).status == :proposed
+    end
+
+    test "a terminal record cannot be transitioned further", %{project: project} do
+      record = record_fixture(project: project, status: :superseded)
+      assert {:error, _} = Intent.accept_record(record)
+      assert {:error, _} = Intent.contradict_record(record)
+    end
+  end
+
+  describe "supersede_record/2" do
+    test "marks a record :superseded", %{project: project} do
+      record = record_fixture(project: project, status: :active, slug: "v1")
+      assert {:ok, %Record{status: :superseded}} = Intent.supersede_record(record)
+    end
+
+    test "links the superseding record and marks the old one :superseded", %{project: project} do
+      old = record_fixture(project: project, status: :active, slug: "v1")
+      replacement = record_fixture(project: project, slug: "v2")
+
+      assert {:ok, %Record{status: :superseded} = superseded} =
+               Intent.supersede_record(old, replacement)
+
+      assert superseded.id == old.id
+      assert Intent.get_record!(replacement.id).supersedes_id == old.id
+    end
+
+    test "rejects superseding an already-superseded record", %{project: project} do
+      old = record_fixture(project: project, status: :superseded, slug: "v1")
+      replacement = record_fixture(project: project, slug: "v2")
+
+      assert {:error, _} = Intent.supersede_record(old, replacement)
+      # The link is rolled back: the replacement is left unlinked.
+      assert Intent.get_record!(replacement.id).supersedes_id == nil
+    end
+  end
 end
