@@ -9,7 +9,9 @@ This repo is the Phoenix/LiveView app and its PostgreSQL data layer.
 > of truth for the domain. Start at `docs/index.md`, then
 > `docs/delivery/mvp.md`, `docs/data-model/core-entities.md`, and
 > `docs/integration/architectural-decision.md`. **Do not modify `docs/`**
-> as part of implementation work — treat it as read-only spec.
+> as part of implementation work — treat it as read-only spec. `docs/` is
+> also the source for the published documentation site (see
+> [Documentation site](#documentation-site)).
 
 The Foundry integration itself is **out of scope** for current work
 unless a task says otherwise.
@@ -91,6 +93,44 @@ network-dependent). Run `dialyzer` and `deps.audit` before pushing.
   boilerplate). RAISE it as domain code lands; the functional core
   should sit well above 90%.
 
+## Documentation site
+
+The `docs/` wiki is published as a **VitePress** site to **GitHub Pages**
+at `https://svetzal.github.io/alloy/`. The Bun toolchain at the repo root
+manages it (mirroring the epilogue-tracker docs setup).
+
+```bash
+bun install          # one-time: install VitePress + mermaid
+bun run docs:dev     # local preview at http://localhost:5173/alloy/
+bun run docs:build   # production build (also the CI link-check)
+bun run docs:preview # serve the built site
+```
+
+Conventions for `docs/` content:
+
+- **Wikilinks.** Pages link with `[[slug]]` or `[[slug|Display text]]`,
+  where `slug` is a **globally-unique filename** (no extension, no path).
+  A custom markdown-it plugin in `docs/.vitepress/config.ts` resolves
+  these at build time; un-piped links render the target's frontmatter
+  `title`. Wikilinks inside backticks stay literal.
+- **Frontmatter.** Each page has `title`, `summary`, `layer`
+  (`home` | `section` | `leaf`), `parent`, and `tags`. The **sidebar is
+  generated** from the folder structure and the one `layer: section`
+  overview per folder — no hand-maintained nav lists.
+- **Dead links fail the build** (`ignoreDeadLinks: false`), so a broken
+  `[[wikilink]]` breaks CI. Adding a page is enough for it to appear.
+
+`docs.yml` builds and deploys on push to `main` (paths `docs/**`); `ci.yml`
+also builds the site on PRs as a link-check. ExDoc (`mix docs`) remains the
+generator for **code/API** reference — separate concern from this prose site.
+
+## CI
+
+`.github/workflows/ci.yml` runs the full Elixir quality gate (with a
+Postgres service and cached deps/PLT) plus the docs link-check on every
+push and PR to `main`. `.github/workflows/docs.yml` deploys the docs site
+to GitHub Pages.
+
 ## How we build (engineering philosophy)
 
 - **Functional core, imperative shell.** Pure business logic lives in
@@ -119,7 +159,9 @@ network-dependent). Run `dialyzer` and `deps.audit` before pushing.
   gates. Integration is the commit.
 - Commit scoped, working changes at logical stopping points. Stage
   **specific paths** (`git add <files>`) — never `git add -A`/`git add .`.
-- Never commit churn under `docs/`.
+- `docs/` **is** versioned (it is the spec and the published site); just
+  don't bundle unrelated changes into a docs commit, and don't rewrite
+  spec content as a side effect of implementation work.
 - End every commit message with:
 
   ```text
@@ -129,10 +171,13 @@ network-dependent). Run `dialyzer` and `deps.audit` before pushing.
 ## Repo layout
 
 ```text
-lib/alloy/        # functional core: contexts, schemas, gateways (no web deps)
-lib/alloy_web/    # web shell: LiveViews, controllers, components, router
-priv/repo/        # migrations + seeds
-test/             # ExUnit; test/support has DataCase / ConnCase
-docs/             # PRODUCT SPEC (read-only)
-usage-rules.md    # Phoenix/Elixir framework guidance
+lib/alloy/          # functional core: contexts, schemas, gateways (no web deps)
+lib/alloy_web/      # web shell: LiveViews, controllers, components, router
+priv/repo/          # migrations + seeds
+test/               # ExUnit; test/support has DataCase / ConnCase
+docs/               # PRODUCT SPEC (read-only) + VitePress site source
+docs/.vitepress/    # VitePress config: wikilink plugin + generated sidebar
+.github/workflows/  # ci.yml (Elixir gate + docs check), docs.yml (Pages deploy)
+package.json        # Bun-managed VitePress toolchain (docs only)
+usage-rules.md      # Phoenix/Elixir framework guidance
 ```
