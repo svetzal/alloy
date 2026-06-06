@@ -1,0 +1,33 @@
+# Sobelow configuration for Alloy.
+#
+# Run with: mix sobelow --config
+#
+# `exit: "low"` makes the security gate fail the build on any finding at
+# or above low severity, so new issues cannot slip in silently.
+#
+# `ignore` skips two findings that are inherent to a fresh scaffold and
+# belong to the deployment hardening phase, not application code:
+#
+#   * Config.CSP   — a Content-Security-Policy must be authored once the
+#                    UI's asset/inline-script needs are known. Tracked as
+#                    a hardening follow-up; see AGENTS.md.
+#   * Config.HTTPS — TLS/HSTS termination is a deployment-topology
+#                    decision (docs/integration/architectural-decision.md
+#                    deliberately leaves hosting open). Enforce HSTS via
+#                    force_ssl in runtime.exs, or at the proxy, when a
+#                    topology is chosen.
+#
+# Remove entries from `ignore` as each item is addressed.
+[
+  exit: "low",
+  format: "txt",
+  ignore: ["Config.CSP", "Config.HTTPS"],
+  ignore_files: [],
+  out: nil,
+  private: false,
+  router: nil,
+  skip: false,
+  threshold: :low,
+  verbose: false,
+  version: false
+]

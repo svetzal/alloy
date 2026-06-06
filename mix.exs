@@ -11,7 +11,58 @@ defmodule Alloy.MixProject do
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      dialyzer: dialyzer(),
+      docs: docs(),
+      test_coverage: test_coverage()
+    ]
+  end
+
+  # Test coverage configuration.
+  #
+  # The scaffold is mostly generated framework boilerplate with no domain
+  # behaviour yet, so the bootstrap threshold is intentionally low. RAISE
+  # THIS as real Alloy domain code (intent records, briefs, feedback)
+  # lands — the functional core should sit comfortably above 90%.
+  #
+  # Generated, behaviour-free modules are excluded so the number reflects
+  # code we actually own and test.
+  defp test_coverage do
+    [
+      summary: [threshold: 30],
+      ignore_modules: [
+        Alloy.Application,
+        Alloy.Mailer,
+        Alloy.Repo,
+        AlloyWeb,
+        AlloyWeb.Endpoint,
+        AlloyWeb.Gettext,
+        AlloyWeb.Layouts,
+        AlloyWeb.Telemetry,
+        AlloyWeb.CoreComponents,
+        AlloyWeb.ErrorHTML,
+        AlloyWeb.ErrorJSON,
+        ~r/AlloyWeb\.Layouts\..*/
+      ]
+    ]
+  end
+
+  # Dialyzer configuration. The PLT is cached under priv/plts so CI can
+  # restore it between runs (priv/plts is git-ignored).
+  defp dialyzer do
+    [
+      plt_local_path: "priv/plts",
+      plt_core_path: "priv/plts",
+      plt_add_apps: [:ex_unit, :mix],
+      flags: [:error_handling, :extra_return, :missing_return, :unmatched_returns]
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      extras: ["README.md"],
+      source_url: "https://github.com/mojility/alloy"
     ]
   end
 
@@ -27,7 +78,7 @@ defmodule Alloy.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [precommit: :test, quality: :test]
     ]
   end
 
@@ -65,7 +116,14 @@ defmodule Alloy.MixProject do
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+
+      # Quality tooling
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end
 
@@ -88,7 +146,17 @@ defmodule Alloy.MixProject do
         "esbuild alloy --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warning-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"],
+      # Full quality gate. Run before pushing / merging to main.
+      # `mix dialyzer` and `mix deps.audit` are run separately so a slow
+      # PLT build or a network-dependent audit does not block fast feedback.
+      quality: [
+        "format --check-formatted",
+        "compile --warnings-as-errors",
+        "credo --strict",
+        "sobelow --config",
+        "test"
+      ]
     ]
   end
 end
