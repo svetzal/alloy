@@ -20,16 +20,16 @@ defmodule Alloy.MixProject do
 
   # Test coverage configuration.
   #
-  # The scaffold is mostly generated framework boilerplate with no domain
-  # behaviour yet, so the bootstrap threshold is intentionally low. RAISE
-  # THIS as real Alloy domain code (intent records, briefs, feedback)
-  # lands — the functional core should sit comfortably above 90%.
+  # The first domain slice (engineering intent records) has landed, so the
+  # threshold is ratcheted off its bootstrap floor. RAISE THIS further as
+  # more domain code (briefs, feedback, archaeology) lands — the functional
+  # core should sit comfortably above 90%.
   #
   # Generated, behaviour-free modules are excluded so the number reflects
   # code we actually own and test.
   defp test_coverage do
     [
-      summary: [threshold: 30],
+      summary: [threshold: 90],
       ignore_modules: [
         Alloy.Application,
         Alloy.Mailer,
@@ -42,6 +42,7 @@ defmodule Alloy.MixProject do
         AlloyWeb.CoreComponents,
         AlloyWeb.ErrorHTML,
         AlloyWeb.ErrorJSON,
+        AlloyWeb.PageHTML,
         ~r/AlloyWeb\.Layouts\..*/
       ]
     ]

@@ -18,6 +18,11 @@ defmodule AlloyWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    live "/intents", IntentRecordLive.Index, :index
+    live "/intents/new", IntentRecordLive.Form, :new
+    live "/intents/:id", IntentRecordLive.Show, :show
+    live "/intents/:id/edit", IntentRecordLive.Form, :edit
   end
 
   # Other scopes may use custom stacks.
