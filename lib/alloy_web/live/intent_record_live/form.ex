@@ -3,11 +3,12 @@ defmodule AlloyWeb.IntentRecordLive.Form do
 
   alias Alloy.Intent
   alias Alloy.Intent.Record
+  alias Alloy.Projects
 
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} projects={@projects} current_project={@project}>
       <.header>
         {@page_title}
         <:subtitle>
@@ -19,6 +20,13 @@ defmodule AlloyWeb.IntentRecordLive.Form do
 
       <.form for={@form} id="intent-record-form" phx-change="validate" phx-submit="save">
         <.input field={@form[:title]} type="text" label="Title" />
+
+        <.input
+          :if={@live_action == :new}
+          field={@form[:slug]}
+          type="text"
+          label="Key (slug) — leave blank to derive from the title"
+        />
 
         <.input
           field={@form[:capability]}
@@ -68,7 +76,7 @@ defmodule AlloyWeb.IntentRecordLive.Form do
 
         <footer class="mt-4 flex items-center gap-4">
           <.button variant="primary" phx-disable-with="Saving...">Save Intent Record</.button>
-          <.button navigate={return_path(@return_to, @record)}>Cancel</.button>
+          <.button navigate={return_path(@return_to, @project, @record)}>Cancel</.button>
         </footer>
       </.form>
     </Layouts.app>
@@ -76,9 +84,13 @@ defmodule AlloyWeb.IntentRecordLive.Form do
   end
 
   @impl true
-  def mount(params, _session, socket) do
+  def mount(%{"project_key" => project_key} = params, _session, socket) do
+    project = Projects.get_project_by_key!(project_key)
+
     {:ok,
      socket
+     |> assign(:project, project)
+     |> assign(:projects, Projects.list_projects())
      |> assign(:return_to, return_to(params["return_to"]))
      |> apply_action(socket.assigns.live_action, params)}
   end
@@ -95,8 +107,8 @@ defmodule AlloyWeb.IntentRecordLive.Form do
     |> assign_form(Intent.change_record(record))
   end
 
-  defp apply_action(socket, :edit, %{"id" => id}) do
-    record = Intent.get_record!(id)
+  defp apply_action(socket, :edit, %{"slug" => slug}) do
+    record = Intent.get_record_by_slug!(socket.assigns.project, slug)
 
     socket
     |> assign(:page_title, "Edit Intent Record")
@@ -115,12 +127,14 @@ defmodule AlloyWeb.IntentRecordLive.Form do
   end
 
   defp save_record(socket, :new, record_params) do
-    case Intent.create_record(record_params) do
+    case Intent.create_record(socket.assigns.project, record_params) do
       {:ok, record} ->
         {:noreply,
          socket
          |> put_flash(:info, "Intent record created successfully")
-         |> push_navigate(to: return_path(socket.assigns.return_to, record))}
+         |> push_navigate(
+           to: return_path(socket.assigns.return_to, socket.assigns.project, record)
+         )}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
@@ -133,7 +147,9 @@ defmodule AlloyWeb.IntentRecordLive.Form do
         {:noreply,
          socket
          |> put_flash(:info, "Intent record updated successfully")
-         |> push_navigate(to: return_path(socket.assigns.return_to, record))}
+         |> push_navigate(
+           to: return_path(socket.assigns.return_to, socket.assigns.project, record)
+         )}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
@@ -150,6 +166,6 @@ defmodule AlloyWeb.IntentRecordLive.Form do
     end)
   end
 
-  defp return_path("index", _record), do: ~p"/intents"
-  defp return_path("show", record), do: ~p"/intents/#{record}"
+  defp return_path("index", project, _record), do: ~p"/projects/#{project}/intents"
+  defp return_path("show", project, record), do: ~p"/projects/#{project}/intents/#{record}"
 end

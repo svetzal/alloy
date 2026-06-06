@@ -22,6 +22,8 @@ defmodule Alloy.Projects.Project do
     field :key, :string
     field :name, :string
 
+    has_many :records, Alloy.Intent.Record
+
     timestamps(type: :utc_datetime_usec)
   end
 

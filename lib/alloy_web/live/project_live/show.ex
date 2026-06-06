@@ -6,7 +6,7 @@ defmodule AlloyWeb.ProjectLive.Show do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} projects={@projects} current_project={@project}>
       <.header>
         {@project.name}
         <:subtitle>
@@ -14,7 +14,10 @@ defmodule AlloyWeb.ProjectLive.Show do
         </:subtitle>
         <:actions>
           <.button navigate={~p"/projects"}>Back</.button>
-          <.button variant="primary" navigate={~p"/projects/#{@project}/edit"}>
+          <.button variant="primary" navigate={~p"/projects/#{@project}/intents"}>
+            <.icon name="hero-rectangle-stack" /> Intent Records
+          </.button>
+          <.button navigate={~p"/projects/#{@project}/edit"}>
             <.icon name="hero-pencil-square" /> Edit
           </.button>
         </:actions>
@@ -35,6 +38,7 @@ defmodule AlloyWeb.ProjectLive.Show do
     {:ok,
      socket
      |> assign(:page_title, project.name)
-     |> assign(:project, project)}
+     |> assign(:project, project)
+     |> assign(:projects, Projects.list_projects())}
   end
 end

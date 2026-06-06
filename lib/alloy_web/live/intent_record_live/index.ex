@@ -2,18 +2,20 @@ defmodule AlloyWeb.IntentRecordLive.Index do
   use AlloyWeb, :live_view
 
   alias Alloy.Intent
+  alias Alloy.Projects
 
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} projects={@projects} current_project={@project}>
       <.header>
         Engineering Intent
         <:subtitle>
-          Capabilities the codebase must retain, and the reasoning that protects them.
+          {@project.name} — capabilities the codebase must retain, and the
+          reasoning that protects them.
         </:subtitle>
         <:actions>
-          <.button variant="primary" navigate={~p"/intents/new"}>
+          <.button variant="primary" navigate={~p"/projects/#{@project}/intents/new"}>
             <.icon name="hero-plus" /> New Intent Record
           </.button>
         </:actions>
@@ -22,7 +24,7 @@ defmodule AlloyWeb.IntentRecordLive.Index do
       <.table
         id="records"
         rows={@streams.records}
-        row_click={fn {_id, record} -> JS.navigate(~p"/intents/#{record}") end}
+        row_click={fn {_id, record} -> JS.navigate(~p"/projects/#{@project}/intents/#{record}") end}
       >
         <:col :let={{_id, record}} label="Title">{record.title}</:col>
         <:col :let={{_id, record}} label="Capability">{record.capability}</:col>
@@ -30,7 +32,7 @@ defmodule AlloyWeb.IntentRecordLive.Index do
           <span class="badge badge-soft">{record.status}</span>
         </:col>
         <:action :let={{_id, record}}>
-          <.link navigate={~p"/intents/#{record}/edit"}>Edit</.link>
+          <.link navigate={~p"/projects/#{@project}/intents/#{record}/edit"}>Edit</.link>
         </:action>
         <:action :let={{id, record}}>
           <.link
@@ -46,11 +48,15 @@ defmodule AlloyWeb.IntentRecordLive.Index do
   end
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(%{"project_key" => project_key}, _session, socket) do
+    project = Projects.get_project_by_key!(project_key)
+
     {:ok,
      socket
-     |> assign(:page_title, "Engineering Intent")
-     |> stream(:records, Intent.list_records())}
+     |> assign(:page_title, "#{project.name} — Engineering Intent")
+     |> assign(:project, project)
+     |> assign(:projects, Projects.list_projects())
+     |> stream(:records, Intent.list_records(project))}
   end
 
   @impl true

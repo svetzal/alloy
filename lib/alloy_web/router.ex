@@ -24,10 +24,10 @@ defmodule AlloyWeb.Router do
     live "/projects/:key", ProjectLive.Show, :show
     live "/projects/:key/edit", ProjectLive.Form, :edit
 
-    live "/intents", IntentRecordLive.Index, :index
-    live "/intents/new", IntentRecordLive.Form, :new
-    live "/intents/:id", IntentRecordLive.Show, :show
-    live "/intents/:id/edit", IntentRecordLive.Form, :edit
+    live "/projects/:project_key/intents", IntentRecordLive.Index, :index
+    live "/projects/:project_key/intents/new", IntentRecordLive.Form, :new
+    live "/projects/:project_key/intents/:slug", IntentRecordLive.Show, :show
+    live "/projects/:project_key/intents/:slug/edit", IntentRecordLive.Form, :edit
   end
 
   # Other scopes may use custom stacks.

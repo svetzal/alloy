@@ -27,9 +27,11 @@ defmodule AlloyWeb.Layouts do
   """
   attr :flash, :map, required: true, doc: "the map of flash messages"
 
-  attr :current_scope, :map,
+  attr :projects, :list, default: [], doc: "projects offered in the switcher"
+
+  attr :current_project, :any,
     default: nil,
-    doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
+    doc: "the project the current view is scoped to, if any"
 
   slot :inner_block, required: true
 
@@ -44,6 +46,25 @@ defmodule AlloyWeb.Layouts do
       </div>
       <div class="flex-none">
         <ul class="flex flex-column px-1 space-x-4 items-center">
+          <li :if={@projects != []}>
+            <details class="dropdown dropdown-end">
+              <summary class="btn btn-ghost">
+                {(@current_project && @current_project.name) || "Switch project"}
+                <.icon name="hero-chevron-down" class="size-4" />
+              </summary>
+              <ul class="menu dropdown-content bg-base-200 rounded-box z-10 mt-1 w-56 p-2 shadow-sm">
+                <li :for={project <- @projects}>
+                  <.link
+                    navigate={~p"/projects/#{project}/intents"}
+                    class={@current_project && project.id == @current_project.id && "menu-active"}
+                  >
+                    {project.name}
+                  </.link>
+                </li>
+                <li><.link navigate={~p"/projects"}>Manage projects…</.link></li>
+              </ul>
+            </details>
+          </li>
           <li>
             <.link navigate={~p"/projects"} class="btn btn-ghost">Projects</.link>
           </li>

@@ -3,6 +3,7 @@ defmodule AlloyWeb.IntentRecordLiveTest do
 
   import Phoenix.LiveViewTest
   import Alloy.IntentFixtures
+  import Alloy.ProjectsFixtures
 
   @create_attrs %{
     title: "Stable failure semantics",
@@ -17,23 +18,28 @@ defmodule AlloyWeb.IntentRecordLiveTest do
   @update_attrs %{title: "Stable failure semantics (refined)", status: "accepted"}
   @invalid_attrs %{title: ""}
 
+  setup do
+    {:ok, project: project_fixture()}
+  end
+
   describe "Index" do
-    test "lists records", %{conn: conn} do
-      record = record_fixture()
-      {:ok, _live, html} = live(conn, ~p"/intents")
+    test "lists the project's records", %{conn: conn, project: project} do
+      record = record_fixture(project: project)
+      {:ok, _live, html} = live(conn, ~p"/projects/#{project}/intents")
 
       assert html =~ "Engineering Intent"
+      assert html =~ project.name
       assert html =~ record.title
     end
 
-    test "creates a new record", %{conn: conn} do
-      {:ok, index_live, _html} = live(conn, ~p"/intents")
+    test "creates a new record", %{conn: conn, project: project} do
+      {:ok, index_live, _html} = live(conn, ~p"/projects/#{project}/intents")
 
       assert {:ok, form_live, _html} =
                index_live
                |> element("a", "New Intent Record")
                |> render_click()
-               |> follow_redirect(conn, ~p"/intents/new")
+               |> follow_redirect(conn, ~p"/projects/#{project}/intents/new")
 
       assert render(form_live) =~ "New Intent Record"
 
@@ -41,15 +47,15 @@ defmodule AlloyWeb.IntentRecordLiveTest do
         form_live
         |> form("#intent-record-form", record: @create_attrs)
         |> render_submit()
-        |> follow_redirect(conn, ~p"/intents")
+        |> follow_redirect(conn, ~p"/projects/#{project}/intents")
 
       assert html =~ "Intent record created successfully"
       assert html =~ "Stable failure semantics"
     end
 
-    test "deletes a record", %{conn: conn} do
-      record = record_fixture()
-      {:ok, index_live, _html} = live(conn, ~p"/intents")
+    test "deletes a record", %{conn: conn, project: project} do
+      record = record_fixture(project: project)
+      {:ok, index_live, _html} = live(conn, ~p"/projects/#{project}/intents")
 
       assert index_live |> element("#records-#{record.id} a", "Delete") |> render_click()
       refute has_element?(index_live, "#records-#{record.id}")
@@ -57,8 +63,8 @@ defmodule AlloyWeb.IntentRecordLiveTest do
   end
 
   describe "Form validation" do
-    test "renders errors for invalid data", %{conn: conn} do
-      {:ok, form_live, _html} = live(conn, ~p"/intents/new")
+    test "renders errors for invalid data", %{conn: conn, project: project} do
+      {:ok, form_live, _html} = live(conn, ~p"/projects/#{project}/intents/new")
 
       html =
         form_live
@@ -70,15 +76,15 @@ defmodule AlloyWeb.IntentRecordLiveTest do
   end
 
   describe "Edit" do
-    test "updates a record", %{conn: conn} do
-      record = record_fixture()
-      {:ok, form_live, _html} = live(conn, ~p"/intents/#{record}/edit")
+    test "updates a record", %{conn: conn, project: project} do
+      record = record_fixture(project: project)
+      {:ok, form_live, _html} = live(conn, ~p"/projects/#{project}/intents/#{record}/edit")
 
       {:ok, _live, html} =
         form_live
         |> form("#intent-record-form", record: @update_attrs)
         |> render_submit()
-        |> follow_redirect(conn, ~p"/intents")
+        |> follow_redirect(conn, ~p"/projects/#{project}/intents")
 
       assert html =~ "Intent record updated successfully"
       assert html =~ "Stable failure semantics (refined)"
@@ -86,12 +92,13 @@ defmodule AlloyWeb.IntentRecordLiveTest do
   end
 
   describe "Show" do
-    test "displays a record", %{conn: conn} do
-      record = record_fixture()
-      {:ok, _live, html} = live(conn, ~p"/intents/#{record}")
+    test "displays a record", %{conn: conn, project: project} do
+      record = record_fixture(project: project)
+      {:ok, _live, html} = live(conn, ~p"/projects/#{project}/intents/#{record}")
 
       assert html =~ record.title
       assert html =~ record.capability
+      assert html =~ "#{project.key}.intent.#{record.slug}"
     end
   end
 end
