@@ -139,6 +139,15 @@ defmodule AlloyWeb.Api.IntentRecordControllerTest do
 
       assert body["data"]["status"] == "superseded"
       assert Intent.get_record!(replacement.id).supersedes_id
+
+      # The replacement's link resolves to the predecessor's slug, on both the
+      # single-record and the list responses.
+      show = conn |> get(~p"/api/v1/intents/v2") |> json_response(200)
+      assert show["data"]["supersedes_slug"] == "v1"
+
+      list = conn |> get(~p"/api/v1/intents") |> json_response(200) |> Map.fetch!("data")
+      v2 = Enum.find(list, &(&1["slug"] == "v2"))
+      assert v2["supersedes_slug"] == "v1"
     end
 
     test "POST /supersede with unknown by= returns 404", %{conn: conn, project: project} do

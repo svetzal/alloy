@@ -44,6 +44,19 @@ fn render(project: &Project, charter: &Charter) -> String {
          Use the `alloy` CLI (configured via `.alloy_env`) to read and evolve these records.\n\n",
     );
 
+    out.push_str("## The six fields\n\n");
+    out.push_str(
+        "- **capability** — the ability the system or team must retain\n\
+         - **threat** — the force that erodes that capability\n\
+         - **expectation** — the future change/pressure that makes the threat matter\n\
+         - **strategy** — the approach that protects the capability\n\
+         - **evidence** — observable proof the strategy is working\n\
+         - **tradeoff** — the cost the strategy introduces (not optional — it keeps the\n\
+         \x20 record honest)\n\n\
+         Each record is keyed `<project_key>.intent.<slug>`; the slug is lowercase\n\
+         `[a-z0-9_-]+`, derived from the title, and immutable after creation.\n\n",
+    );
+
     out.push_str("## Common commands\n\n");
     out.push_str(
         "```bash\n\
@@ -114,6 +127,8 @@ mod tests {
         let doc = render(&project(), &Charter::default());
         assert!(doc.contains("Working with Alloy in Acme (acme)"));
         assert!(doc.contains("alloy intent list"));
+        assert!(doc.contains("## The six fields"));
+        assert!(doc.contains("<project_key>.intent.<slug>"));
         assert!(doc.contains("No charter set yet"));
     }
 

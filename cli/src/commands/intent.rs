@@ -167,7 +167,7 @@ fn record_human(r: &IntentRecord) -> String {
         .map(|c| format!("{c:.2}"))
         .unwrap_or_else(|| "—".to_string());
 
-    format!(
+    let mut out = format!(
         "{title}\n  \
          key:         {key}\n  \
          status:      {status}\n  \
@@ -187,7 +187,13 @@ fn record_human(r: &IntentRecord) -> String {
         strategy = or_dash(&r.strategy),
         evidence = or_dash(&r.evidence_summary),
         tradeoff = or_dash(&r.tradeoff),
-    )
+    );
+
+    if let Some(predecessor) = &r.supersedes_slug {
+        out.push_str(&format!("\n  supersedes:  {predecessor}"));
+    }
+
+    out
 }
 
 #[cfg(test)]

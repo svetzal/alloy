@@ -99,6 +99,7 @@ defmodule AlloyWeb.Api.IntentRecordController do
   end
 
   defp render_record(conn, record, project) do
-    json(conn, Envelope.success(IntentRecordJSON.data(record, project)))
+    id_to_slug = Intent.slug_lookup(project, [record.supersedes_id])
+    json(conn, Envelope.success(IntentRecordJSON.data(record, project, id_to_slug)))
   end
 end

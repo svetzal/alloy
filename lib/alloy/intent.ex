@@ -25,6 +25,28 @@ defmodule Alloy.Intent do
   end
 
   @doc """
+  Resolves record ids to their project-local slugs within `project`.
+
+  Returns a `%{id => slug}` map covering the given ids that exist in the project;
+  `nil` ids and ids belonging to other projects are dropped. Used to render a
+  record's `supersedes_id` link as a resolvable slug.
+  """
+  def slug_lookup(%Project{} = project, ids) do
+    ids = ids |> Enum.reject(&is_nil/1) |> Enum.uniq()
+
+    if ids == [] do
+      %{}
+    else
+      Repo.all(
+        from r in Record,
+          where: r.project_id == ^project.id and r.id in ^ids,
+          select: {r.id, r.slug}
+      )
+      |> Map.new()
+    end
+  end
+
+  @doc """
   Gets a single record by id, with its project preloaded.
 
   Raises `Ecto.NoResultsError` if the record does not exist.

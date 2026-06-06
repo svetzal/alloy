@@ -145,10 +145,12 @@ and `warnings` (should review):
 - **Error** — a record's slug is malformed (does not match `^[a-z0-9_-]+$`).
 - **Error** — duplicate slugs within the project.
 - **Error** — a record carries an unknown lifecycle status.
-- **Error** — a `superseded` record's `--by` link does not resolve to an
-  existing record in the project.
+- **Error** — a record's supersede link (its `supersedes_slug` predecessor) does
+  not resolve to an existing record in the project.
 - **Warning** — the project has no charter set.
 - **Warning** — a record left in `hypothesized` with no human disposition.
+- **Warning** — a record supersedes a predecessor that is not itself marked
+  `superseded` (inconsistent lineage).
 
 Exit code is `1` if any error-level issue exists, `0` otherwise. Run it after a
 batch of edits and before relying on the records to guide work.

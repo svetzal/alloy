@@ -84,6 +84,11 @@ pub struct IntentRecord {
     pub scope: Option<serde_json::Value>,
     #[serde(default)]
     pub supersedes_id: Option<String>,
+    /// The slug of the record this one supersedes (its predecessor), resolved by
+    /// the backend within the project. `None` when this record supersedes
+    /// nothing, or when the link does not resolve.
+    #[serde(default)]
+    pub supersedes_slug: Option<String>,
     #[serde(default)]
     pub inserted_at: Option<String>,
     #[serde(default)]

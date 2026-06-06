@@ -1,10 +1,11 @@
 //! `alloy validate` — referential-integrity and shape checks over the project's
 //! charter and intent records.
 //!
-//! The checks feasible from the token-scoped API today: slug well-formedness and
-//! uniqueness, known lifecycle statuses, and charter presence. Deeper
-//! cross-record checks (resolving `supersedes_id` to a record) need the API to
-//! expose the link as a slug and are deferred to a later phase.
+//! Checks: slug well-formedness and uniqueness, known lifecycle statuses,
+//! charter presence, undisposed `hypothesized` records, and supersede-link
+//! integrity — a record's `supersedes_slug` (its predecessor, resolved by the
+//! backend) must name another record in the project, and that predecessor
+//! should itself be marked superseded.
 
 use std::collections::HashMap;
 
@@ -72,8 +73,10 @@ pub fn check(charter: &Charter, records: &[IntentRecord]) -> Report {
     }
 
     let mut seen: HashMap<&str, usize> = HashMap::new();
+    let mut status_by_slug: HashMap<&str, &str> = HashMap::new();
     for record in records {
         *seen.entry(record.slug.as_str()).or_insert(0) += 1;
+        status_by_slug.insert(record.slug.as_str(), record.status.as_str());
 
         if !is_valid_slug(&record.slug) {
             issues.push(Issue {
@@ -94,6 +97,15 @@ pub fn check(charter: &Charter, records: &[IntentRecord]) -> Report {
                 message: format!("unknown status '{}'", record.status),
             });
         }
+
+        if record.status == "hypothesized" {
+            issues.push(Issue {
+                severity: Severity::Warning,
+                entity: record.slug.clone(),
+                message: "left hypothesized — needs a human disposition (accept or contradict)"
+                    .to_string(),
+            });
+        }
     }
 
     for (slug, count) in seen.iter() {
@@ -103,6 +115,33 @@ pub fn check(charter: &Charter, records: &[IntentRecord]) -> Report {
                 entity: (*slug).to_string(),
                 message: format!("slug '{slug}' appears {count} times — slugs must be unique"),
             });
+        }
+    }
+
+    // Supersede links: a record's `supersedes_slug` (its predecessor) must
+    // resolve to another record in the project, and that predecessor should be
+    // marked superseded.
+    for record in records {
+        let Some(predecessor) = record.supersedes_slug.as_deref() else {
+            continue;
+        };
+
+        match status_by_slug.get(predecessor) {
+            None => issues.push(Issue {
+                severity: Severity::Error,
+                entity: record.slug.clone(),
+                message: format!(
+                    "supersedes '{predecessor}', which is not a record in this project"
+                ),
+            }),
+            Some(&status) if status != "superseded" => issues.push(Issue {
+                severity: Severity::Warning,
+                entity: record.slug.clone(),
+                message: format!(
+                    "supersedes '{predecessor}', but that record is '{status}', not superseded"
+                ),
+            }),
+            Some(_) => {}
         }
     }
 
@@ -187,8 +226,16 @@ mod tests {
             version: None,
             scope: None,
             supersedes_id: None,
+            supersedes_slug: None,
             inserted_at: None,
             updated_at: None,
+        }
+    }
+
+    fn superseding(slug: &str, predecessor: &str) -> IntentRecord {
+        IntentRecord {
+            supersedes_slug: Some(predecessor.into()),
+            ..record(slug, "active")
         }
     }
 
@@ -243,5 +290,60 @@ mod tests {
             .issues
             .iter()
             .any(|i| i.message.contains("must be unique")));
+    }
+
+    fn charter() -> Charter {
+        Charter {
+            mission: Some("m".into()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn warns_on_undisposed_hypothesized_record() {
+        let report = check(&charter(), &[record("hyp", "hypothesized")]);
+        assert!(report.valid, "a warning does not invalidate the run");
+        assert_eq!(report.summary.warnings, 1);
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.message.contains("needs a human disposition")));
+    }
+
+    #[test]
+    fn resolved_supersede_link_to_a_superseded_record_is_clean() {
+        let report = check(
+            &charter(),
+            &[record("old", "superseded"), superseding("new", "old")],
+        );
+        assert!(report.valid);
+        assert_eq!(report.summary.warnings, 0);
+        assert_eq!(report.summary.errors, 0);
+    }
+
+    #[test]
+    fn flags_supersede_link_to_a_missing_record() {
+        let report = check(&charter(), &[superseding("new", "ghost")]);
+        assert!(!report.valid);
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.message.contains("not a record in this project")));
+    }
+
+    #[test]
+    fn warns_when_superseded_predecessor_is_not_marked_superseded() {
+        let report = check(
+            &charter(),
+            &[record("old", "active"), superseding("new", "old")],
+        );
+        assert!(
+            report.valid,
+            "an inconsistent predecessor is a warning, not an error"
+        );
+        assert!(report
+            .issues
+            .iter()
+            .any(|i| i.message.contains("not superseded")));
     }
 }

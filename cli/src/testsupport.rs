@@ -54,6 +54,7 @@ impl FakeApi {
                 version: Some(1),
                 scope: None,
                 supersedes_id: None,
+                supersedes_slug: None,
                 inserted_at: None,
                 updated_at: None,
             },
@@ -205,6 +206,7 @@ impl Api for FakeApi {
             version: Some(1),
             scope: None,
             supersedes_id: None,
+            supersedes_slug: None,
             inserted_at: None,
             updated_at: None,
         };
