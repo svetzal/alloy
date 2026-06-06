@@ -1,0 +1,7 @@
+{
+  "name": "alloy-assets",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "//": "Scopes esbuild's module resolution to this directory so it does not inherit the repo-root package.json (the VitePress docs site, type: module). Vendored UMD/CJS libraries (topbar) are then resolved as CommonJS. Assets are built by the Elixir :esbuild/:tailwind tasks, not npm — there are no dependencies here."
+}
