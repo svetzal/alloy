@@ -55,3 +55,9 @@ npm-debug.log
 # Per-project CLI config — holds a bearer token secret.
 .alloy_env
 
+# Epilogue Tracker per-project CLI config — holds a bearer token secret.
+.et_env
+
+# Claude Code local runtime artifacts.
+.claude/scheduled_tasks.lock
+
