@@ -1,9 +1,9 @@
 # AGENTS.md — Working in the Alloy repository
 
-Alloy is a Phoenix/LiveView administration product for capturing and
-refining **engineering intent**. It sits above the Rust "Foundry"
-execution engine and integrates with it through versioned artifacts.
-This repo is the Phoenix/LiveView app and its PostgreSQL data layer.
+Alloy is a product for capturing and refining **engineering intent**. It
+sits above the Rust "Foundry" execution engine and integrates with it
+through versioned artifacts. This is a **monorepo** with two apps and a
+shared documentation site.
 
 > **The product spec lives in `docs/`.** It is the authoritative source
 > of truth for the domain. Start at `docs/index.md`, then
@@ -16,82 +16,47 @@ This repo is the Phoenix/LiveView app and its PostgreSQL data layer.
 The Foundry integration itself is **out of scope** for current work
 unless a task says otherwise.
 
-## Tech stack
+## Per-app agent guidance
 
-- **Elixir** ~> 1.15 (developed on 1.19.5) / **Erlang/OTP 28**.
-- **Phoenix 1.8** + **LiveView 1.1**, **Bandit** server.
-- **Ecto 3 + PostgreSQL** (`postgrex`). Primary keys are **`binary_id`
-  (UUID)** — the data model uses UUID-ish ids throughout.
-- **Tailwind** + **daisyUI** + **esbuild** for assets.
-- **Req** for HTTP (never `:httpoison`/`:tesla`/`:httpc`).
+Each app has its own AGENTS.md with technology-specific guidance and its
+own quality gate. **Load the relevant file based on your working
+context:**
 
-## Common commands
+| Working in   | Agent file            | Suggested subagent             |
+|--------------|-----------------------|--------------------------------|
+| `apps/web/`  | `apps/web/AGENTS.md`  | `elixir-phoenix-craftsperson`  |
+| `apps/cli/`  | `apps/cli/AGENTS.md`  | `rust-craftsperson`            |
 
-```bash
-mix setup            # deps, db create+migrate+seed, assets
-mix phx.server       # run the app at http://localhost:4000
-iex -S mix phx.server
+- **`apps/web/`** — the Phoenix 1.8 / LiveView 1.1 application and its
+  PostgreSQL data layer. This is where the domain model and UI live.
+- **`apps/cli/`** — the `alloy` thin-client Rust CLI. It ships in
+  releases and via Homebrew, and talks to the web app's `/api/v1` JSON
+  API. It holds no local data.
 
-mix test             # run the suite (auto creates/migrates test db)
-mix test path/to/test.exs:42
-mix test --cover     # coverage (threshold ratchets up over time)
+## Repo layout
 
-mix quality          # FULL GATE: format check, compile (warnings as
-                     # errors), credo --strict, sobelow, test
-mix dialyzer         # type analysis (slow; PLT cached in priv/plts)
-mix deps.audit       # dependency vulnerability scan
-mix hex.audit        # retired-package check
-mix docs             # generate ex_doc
+```text
+alloy/
+├── apps/
+│   ├── web/                # Phoenix/LiveView app (mix.exs here)
+│   │   ├── lib/alloy/      # functional core: contexts, schemas, gateways
+│   │   ├── lib/alloy_web/  # web shell: LiveViews, controllers, components
+│   │   ├── priv/repo/      # migrations + seeds
+│   │   ├── test/           # ExUnit; test/support has DataCase / ConnCase
+│   │   ├── config/         # Elixir/Phoenix config
+│   │   ├── assets/         # Tailwind + esbuild sources
+│   │   ├── usage-rules.md  # Phoenix/Elixir framework guidance
+│   │   └── AGENTS.md       # Elixir/Phoenix gate + guidance
+│   └── cli/                # Rust CLI (`alloy` command; Cargo.toml here)
+│       ├── src/            # command logic (Api gateway trait) + HttpApi
+│       ├── skills/         # embedded agent-skill files (include_str!'d)
+│       └── AGENTS.md       # Rust gate + guidance
+├── docs/                   # PRODUCT SPEC (read-only) + VitePress site source
+│   └── .vitepress/         # VitePress config: wikilink plugin + generated sidebar
+├── .github/workflows/      # ci.yml (per-app gates + docs check), docs.yml, release.yml
+├── package.json            # Bun-managed VitePress toolchain (docs only)
+└── AGENTS.md               # this file (shared concerns + routing table)
 ```
-
-### Database
-
-Dev/test DB credentials are environment-overridable and default to the
-local OS user for trust-auth Postgres:
-
-- `DB_USER` (default: `$USER`, else `postgres`)
-- `DB_PASSWORD` (default: empty)
-- `DB_HOST` (default: `localhost`)
-- `DB_NAME` (default: `alloy_dev`)
-
-Production is driven entirely by `config/runtime.exs` (`DATABASE_URL`).
-
-If the database has not been created yet:
-
-```bash
-mix ecto.create && mix ecto.migrate
-```
-
-## Quality gate (the standard for "done")
-
-Work is not done until **all** of these are green:
-
-| Gate | Command | Notes |
-|------|---------|-------|
-| Format | `mix format --check-formatted` | |
-| Compile | `mix compile --warnings-as-errors` | warnings are errors |
-| Lint | `mix credo --strict` | **zero** issues |
-| Security (code) | `mix sobelow --config` | fails on any low+ finding |
-| Security (deps) | `mix deps.audit` | known-vuln scan |
-| Tests | `mix test` | all pass |
-| Coverage | `mix test --cover` | above configured threshold |
-| Types | `mix dialyzer` | zero errors |
-
-`mix quality` runs the fast subset (everything except `dialyzer` and
-`deps.audit`, which are run separately because they are slow or
-network-dependent). Run `dialyzer` and `deps.audit` before pushing.
-
-### Acknowledged scaffold-level exceptions
-
-- **Sobelow `Config.CSP` / `Config.HTTPS`** are ignored in
-  `.sobelow-conf`. `Config.HTTPS`: Alloy runs behind a reverse proxy
-  that terminates TLS, so the app serves plain HTTP and does not manage
-  certs/HSTS — a settled decision, not a follow-up. `Config.CSP`: a
-  Content-Security-Policy is authored once the UI's script needs are
-  known (revisit during UI hardening).
-- **Coverage threshold** is low at bootstrap (mostly generated
-  boilerplate). RAISE it as domain code lands; the functional core
-  should sit well above 90%.
 
 ## Documentation site
 
@@ -121,44 +86,48 @@ Conventions for `docs/` content:
   `[[wikilink]]` breaks CI. Adding a page is enough for it to appear.
 
 `docs.yml` builds and deploys on push to `main` (paths `docs/**`); `ci.yml`
-also builds the site on PRs as a link-check. ExDoc (`mix docs`) remains the
-generator for **code/API** reference — separate concern from this prose site.
+also builds the site on PRs as a link-check. ExDoc (`mix docs` in
+`apps/web/`) remains the generator for **code/API** reference — separate
+concern from this prose site.
 
 ## CI
 
-`.github/workflows/ci.yml` runs the full Elixir quality gate (with a
-Postgres service and cached deps/PLT), the Rust CLI gate (`cargo fmt --check`,
-`cargo clippy --all-targets -- -D warnings`, `cargo test` in `cli/`), and the
-docs link-check on every push and PR to `main`. `.github/workflows/docs.yml`
-deploys the docs site to GitHub Pages. `.github/workflows/release.yml` is
-tag-triggered (`v*`): it verifies the tag matches `cli/Cargo.toml`, then
-cross-compiles the `alloy` CLI for macOS (arm64/x64), Linux x64, and Windows
-x64, attaches the binaries plus a `SHA256SUMS.txt` to a GitHub Release, mirrors
-them to `s3://alloy-releases/`, and updates `Formula/alloy.rb` in the shared
+`.github/workflows/ci.yml` runs three independent jobs on every push and
+PR to `main`:
+
+- **Elixir quality gate** (`working-directory: apps/web`) — the full
+  `mix quality` gate against a Postgres service, with cached deps/PLT,
+  plus `deps.audit`, `hex.audit`, and `dialyzer`.
+- **Rust CLI quality gate** (`working-directory: apps/cli`) —
+  `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
+  `cargo test`.
+- **Docs build (link check)** — `bun run docs:build` at the repo root.
+
+`.github/workflows/docs.yml` deploys the docs site to GitHub Pages.
+`.github/workflows/release.yml` is tag-triggered (`v*`): it verifies the
+tag matches `apps/cli/Cargo.toml`, cross-compiles the `alloy` CLI for
+macOS (arm64/x64), Linux x64, and Windows x64, attaches the binaries plus
+a `SHA256SUMS.txt` to a GitHub Release, mirrors them to
+`s3://alloy-releases/`, and updates `Formula/alloy.rb` in the shared
 `svetzal/homebrew-tap` (needs `HOMEBREW_TAP_TOKEN` and `AWS_ACCESS_KEY_ID` /
-`AWS_SECRET_ACCESS_KEY` secrets; the tap update is skipped for pre-release tags).
+`AWS_SECRET_ACCESS_KEY` secrets; the tap update is skipped for pre-release
+tags).
 
 ## How we build (engineering philosophy)
 
-- **Functional core, imperative shell.** Pure business logic lives in
-  `lib/alloy/` contexts with no side effects. I/O — DB, HTTP, the
-  filesystem, the eventual Foundry boundary — is pushed to thin
-  **gateway** modules behind behaviours. Web (`lib/alloy_web/`) depends
-  on core, never the reverse.
-- **Gateways, not mocked internals.** Only mock gateway behaviours (via
-  **Mox**); never mock library internals. If you need to fake a
-  third-party library, wrap it in a gateway first. Don't write tests for
-  thin gateways with no logic — move any logic into the core and test it
-  there.
+Both apps share the same spine:
+
+- **Functional core, imperative shell.** Pure business logic has no side
+  effects; I/O — DB, HTTP, the filesystem, the eventual Foundry boundary
+  — is pushed to thin **gateway** modules behind behaviours/traits.
+- **Gateways, not mocked internals.** Only mock gateway boundaries; never
+  mock library internals. Don't write tests for thin gateways with no
+  logic — move any logic into the core and test it there.
 - **Tests are the spec.** Prefer writing the failing test first. Test
-  behaviour, not implementation. Use `start_supervised!/1`; avoid
-  `Process.sleep/1`.
-- **Contexts own queries.** Never put Ecto queries in LiveViews; always
-  use changesets for writes; always preload associations used in
-  templates.
-- **Phoenix conventions.** Follow `usage-rules.md` (the Phoenix/Elixir
-  framework guidance shipped with the installer) for LiveView, HEEx,
-  forms, streams, auth scopes, and UI/dark-mode rules.
+  behaviour, not implementation.
+
+Per-language specifics (commands, quality gates, conventions) live in each
+app's `AGENTS.md`.
 
 ## Version control (trunk-based)
 
@@ -174,17 +143,3 @@ them to `s3://alloy-releases/`, and updates `Formula/alloy.rb` in the shared
   ```text
   Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
   ```
-
-## Repo layout
-
-```text
-lib/alloy/          # functional core: contexts, schemas, gateways (no web deps)
-lib/alloy_web/      # web shell: LiveViews, controllers, components, router
-priv/repo/          # migrations + seeds
-test/               # ExUnit; test/support has DataCase / ConnCase
-docs/               # PRODUCT SPEC (read-only) + VitePress site source
-docs/.vitepress/    # VitePress config: wikilink plugin + generated sidebar
-.github/workflows/  # ci.yml (Elixir gate + docs check), docs.yml (Pages deploy)
-package.json        # Bun-managed VitePress toolchain (docs only)
-usage-rules.md      # Phoenix/Elixir framework guidance
-```

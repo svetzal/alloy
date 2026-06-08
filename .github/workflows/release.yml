@@ -3,7 +3,7 @@ name: Release
 # Tag-triggered: pushing a `vX.Y.Z` tag cross-compiles the `alloy` CLI for each
 # supported platform, attaches the binaries (Unix as `.tar.gz`, Windows as a raw
 # `.exe`) plus a SHA256SUMS file to a GitHub Release, and updates the shared
-# svetzal/homebrew-tap formula. The tag's version must match `cli/Cargo.toml` so
+# svetzal/homebrew-tap formula. The tag's version must match `apps/cli/Cargo.toml` so
 # the shipped binary's `--version` is truthful.
 
 on:
@@ -25,13 +25,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Tag version equals cli/Cargo.toml version
+      - name: Tag version equals apps/cli/Cargo.toml version
         run: |
           tag="${GITHUB_REF#refs/tags/v}"
-          crate="$(grep -m1 '^version' cli/Cargo.toml | sed -E 's/.*"(.*)".*/\1/')"
+          crate="$(grep -m1 '^version' apps/cli/Cargo.toml | sed -E 's/.*"(.*)".*/\1/')"
           echo "tag=$tag crate=$crate"
           if [ "$tag" != "$crate" ]; then
-            echo "::error::tag v$tag does not match cli/Cargo.toml version $crate — bump the crate version before tagging"
+            echo "::error::tag v$tag does not match apps/cli/Cargo.toml version $crate — bump the crate version before tagging"
             exit 1
           fi
 
@@ -62,7 +62,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     defaults:
       run:
-        working-directory: cli
+        working-directory: apps/cli
 
     steps:
       - uses: actions/checkout@v5
@@ -75,7 +75,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: cli
+          workspaces: apps/cli
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
@@ -88,7 +88,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: cli/${{ matrix.artifact }}
+          path: apps/cli/${{ matrix.artifact }}
 
   release:
     name: Publish GitHub Release

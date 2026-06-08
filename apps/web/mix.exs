@@ -62,7 +62,8 @@ defmodule Alloy.MixProject do
   defp docs do
     [
       main: "readme",
-      extras: ["README.md"],
+      # README lives at the repo root (apps/web is one level down).
+      extras: ["../../README.md"],
       source_url: "https://github.com/mojility/alloy"
     ]
   end

@@ -18,6 +18,11 @@ jobs:
     name: Elixir quality gate
     runs-on: ubuntu-latest
 
+    # The Phoenix app lives in apps/web; run every mix step from there.
+    defaults:
+      run:
+        working-directory: apps/web
+
     # `mix quality` runs in the :test env (see cli: preferred_envs in mix.exs),
     # so it needs a database. These env vars are read by config/test.exs.
     env:
@@ -53,16 +58,16 @@ jobs:
         uses: actions/cache@v5
         with:
           path: |
-            deps
-            _build
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+            apps/web/deps
+            apps/web/_build
+          key: ${{ runner.os }}-mix-${{ hashFiles('apps/web/mix.lock') }}
           restore-keys: ${{ runner.os }}-mix-
 
       - name: Cache Dialyzer PLT
         uses: actions/cache@v5
         with:
-          path: priv/plts
-          key: ${{ runner.os }}-plt-${{ hashFiles('**/mix.lock') }}
+          path: apps/web/priv/plts
+          key: ${{ runner.os }}-plt-${{ hashFiles('apps/web/mix.lock') }}
           restore-keys: ${{ runner.os }}-plt-
 
       - name: Install dependencies
@@ -90,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: cli
+        working-directory: apps/cli
     steps:
       - uses: actions/checkout@v5
 
@@ -102,7 +107,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: cli
+          workspaces: apps/cli
 
       - name: Format check
         run: cargo fmt --check
